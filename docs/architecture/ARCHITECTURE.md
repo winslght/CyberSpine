@@ -1,5 +1,7 @@
 # 系统详细架构与接口协议规范 (System Architecture & Protocol Spec)
 
+> **历史 PoC 架构说明，已不作为实施基准。** 本文记录概念验证阶段的系统设想与接口草案；其中的“定稿”“批准实施”等表述仅反映当时状态。当前工程主线以 [`../current/PROJECT_DIRECTION.md`](../current/PROJECT_DIRECTION.md)、[`TARGET_ARCHITECTURE.md`](TARGET_ARCHITECTURE.md) 和 [`../current/UNIFIED_NEURAL_COMMUNICATION.md`](../current/UNIFIED_NEURAL_COMMUNICATION.md) 为准。
+
 **版本**：v3.2.0 (意图感知、通用跨语言神经协议 BNP、全组件蓝图与双通道协同定稿版)  
 **核心定位**：“身旁坐着一位懂你节奏的大佬搭档 (The Silent Senior Partner)”——端侧宏观感知、自然节律聚合与 MCP 意图故事共鸣中枢。  
 **状态**：工程基准定稿 (Approved for Implementation)  

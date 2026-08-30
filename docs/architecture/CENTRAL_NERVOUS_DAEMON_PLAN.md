@@ -1,5 +1,7 @@
 # CyberSpine 独立后台神经中枢守护进程开发规划方案 (Daemon Architecture)
 
+> **历史 PoC 规划，非当前工程计划。** 守护进程、IPC 和后台常驻的设想尚未进入当前正式范围；不得按本文直接创建运行时、网络端口或进程间通道。当前交付顺序见 [`../current/DEVELOPMENT_PLAN.md`](../current/DEVELOPMENT_PLAN.md)。
+
 **文档编号**：DOC-ARCH-003  
 **状态**：规划审阅中 (Planning Review)  
 **目标**：将 CyberSpine 中枢神经系统（小而快的感觉哨兵 + 双节奏起搏器 + 小脑简报打包器）工程化封装为一个**可长期独立稳定运行于 Windows 后台的轻量级低功耗守护进程 (Autonomous Background Daemon)**，并通过标准进程间通信 (IPC/HTTP/WebSocket) 与前额叶高级大脑解耦协同。

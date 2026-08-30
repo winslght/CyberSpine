@@ -1,5 +1,7 @@
 # 通用跨语言神经末梢协议规范 (Biomimetic Nerve Protocol - BNP v1.0 Spec)
 
+> **历史 PoC 协议草案，已被统一消息规范取代。** 本文用于理解早期探索，不得据此实现新插件、传输层或协议兼容。当前唯一有效的内部消息契约见 [`../current/UNIFIED_NEURAL_COMMUNICATION.md`](../current/UNIFIED_NEURAL_COMMUNICATION.md)。
+
 **文档编号**：DOC-SPEC-001  
 **协议版本**：BNP v1.0.0  
 **状态**：核心协议定稿 (Approved Specification)  

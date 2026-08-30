@@ -29,7 +29,7 @@ src/
 └─ experimental/  未进入 Demo 主闭环的探索
 ```
 
-当前的 `perceptors/`、`pacing/`、`spinal_core/`、`cortex/`、`actuators/`、`mcp/` 与 `app/` 是迁移中的实现分组。新功能必须按目标边界新增；旧模块仅在被修改时连同测试渐进迁移。
+当前的 `perceptors/`、`pacing/`、`spinal_core/`、`cortex/`、`actuators/`、`mcp/` 与 `app/` 是早期 PoC 留存的迁移分组，不是正式能力的落点。新功能必须按目标边界新增；旧模块只能作为兼容适配或行为验收参考，并在确有迁移需要时连同测试渐进处理。
 
 ## 依赖方向
 

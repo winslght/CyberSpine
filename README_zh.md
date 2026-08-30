@@ -1,21 +1,23 @@
 # CyberSpine
 
-CyberSpine 是一个面向 Windows 的本地感知实验 Demo：它把当前桌面工作状态整理为结构化上下文，供上层 AI Agent 通过 MCP 读取；任何桌面动作都必须经过用户确认。
+CyberSpine 正在把早期概念验证（PoC）建设为面向 Windows 的本地感知与受控上下文工程。新主干将经用户授权范围内的桌面事实整理为结构化上下文，供上层 AI Agent 通过 MCP 读取；任何桌面动作都必须经过用户确认。
 
-## 当前 Demo 的唯一闭环
+> **工程状态。** 仓库保留的旧 `perceptors → pacing → app → mcp` 系统、驾驶舱与多感知器实现用于验证产品概念，不是当前正式主线。所有新能力只进入 `sensing → core → context → adapters/apps → actions` 的统一消息主干；旧模块仅可作为兼容适配器或行为验收参考。以 [`docs/current/PROJECT_DIRECTION.md`](docs/current/PROJECT_DIRECTION.md) 为准。
+
+## 当前工程 Demo 的唯一闭环
 
 ```text
 Windows 状态采集 → 结构化上下文 → MCP 工具读取 → 用户确认 → 有限桌面动作
 ```
 
-当前 Demo 关注的输入：
+当前工程 Demo 的首个垂直切片关注的输入：
 
 - 前台应用与窗口标题；
 - CPU、内存和网络等基础系统状态；
 - 存储与当前工作区的浅层信息；
 - 剪贴板内容类型（不将原始敏感内容作为上下文输出）。
 
-其目的不是自动替用户操作电脑，而是验证“本地系统感知能否安全地为上层 Agent 提供有用上下文”。
+其目的不是自动替用户操作电脑，而是在 PoC 已验证产品方向的基础上，工程化交付可维护、可审计且隐私受限的最小闭环。
 
 ## 快速开始
 

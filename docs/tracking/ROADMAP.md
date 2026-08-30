@@ -1,5 +1,7 @@
 # CyberSpine 8 大页面全景工程路线图 (Roadmap & Functional Specs)
 
+> **历史 PoC 路线图，非当前工程排期或功能规格。** 本文记录早期概念验证阶段对驾驶舱、插件商店、模型和双向 MCP 的设想，不能据此实现或承诺功能。当前正式工程主线、范围与顺序分别以 [`../current/PROJECT_DIRECTION.md`](../current/PROJECT_DIRECTION.md)、[`../current/DEMO_SCOPE.md`](../current/DEMO_SCOPE.md) 和 [`../current/DEVELOPMENT_PLAN.md`](../current/DEVELOPMENT_PLAN.md) 为准。
+
 本文档定义 CyberSpine 系统的完整 UI/UX 与功能页面规格书。按照模块化架构，我们将逐页进行高质量演进开发。
 
 ---

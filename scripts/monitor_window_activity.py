@@ -100,7 +100,7 @@ def _event_lines(messages) -> list[str]:
 
 
 def _render_dashboard(messages, peripheral: WindowActivityPeripheral, recent_events: list[str],
-                      sample_interval: float, display_interval: float) -> str:
+                      sample_interval: float, display_interval: float, display_origin: str) -> str:
     state = next(message for message in messages if message.topic == "window.current_state")
     catalog = next(message for message in messages if message.topic == "window.catalog")
     summary = next(message for message in messages if message.topic == "window.time_window_summary")
@@ -110,7 +110,11 @@ def _render_dashboard(messages, peripheral: WindowActivityPeripheral, recent_eve
     active = [item["application"] for item in catalog.payload["windows"]
               if item["interaction"]["is_high_frequency"]]
     if foreground is None:
-        foreground_text = "前台不可归因（系统过渡态）"
+        foreground_text = ("前台未解析（等待系统事件）" if payload["foreground_status"] == "unresolved"
+                           else "前台不可归因（系统过渡态）")
+    elif payload["foreground_status"] == "temporarily_unresolved":
+        foreground_text = (f"前台待确认｜最后确认={foreground['application']} "
+                           f"已等待={payload['last_confirmed_foreground_age_seconds']:.1f}s")
     else:
         window_state = foreground["window_state"]
         state_bits = []
@@ -128,6 +132,7 @@ def _render_dashboard(messages, peripheral: WindowActivityPeripheral, recent_eve
                        f"{catalog.payload['window_count']} 个目录窗口", width),
              _box_line(f"◌ 输入监听  {'正常' if peripheral.input_monitor_running else '未启用'} · "
                        f"回调错误 {peripheral.input_monitor_error_count} · 采样 {sample_interval:g}s / 刷新 {display_interval:g}s", width),
+             _box_line(f"◌ 当前展示  {display_origin}", width),
              _box_divider("实时窗口事实", width),
              _box_line(f"前台状态  {payload['foreground_status']}", width),
              _box_line(f"屏幕窗口  {_format_presented_windows(catalog.payload)}", width),
@@ -156,20 +161,33 @@ def _draw_dashboard(rendered: str, clear_screen: bool) -> None:
     print(rendered, flush=True)
 
 
-def main() -> int:
-    if hasattr(sys.stdout, "reconfigure"):
-        sys.stdout.reconfigure(encoding="utf-8")
+def _deadline_reached(deadline: float | None) -> bool:
+    """用调用时的单调时钟判断期限，避免复用阻塞等待前的旧时间。"""
+    return deadline is not None and time.monotonic() >= deadline
+
+
+def _argument_parser() -> argparse.ArgumentParser:
     parser = argparse.ArgumentParser(description="观察 CyberSpine 窗口感知插件")
     parser.add_argument("--duration", type=float, default=0, help="运行秒数；0 表示持续运行至 Ctrl+C")
-    parser.add_argument("--interval", type=float, default=10, help="窗口目录低频校准间隔（秒）")
+    parser.add_argument("--interval", type=float, default=60, help="窗口目录低频校准间隔（秒）")
     parser.add_argument("--display-interval", type=float, default=5, help="终端仪表盘刷新间隔（秒）")
-    parser.add_argument("--input-monitor", action="store_true", help="诊断模式：启用全局键鼠交互统计，可能增加系统负担")
+    parser.add_argument("--input-monitor", action=argparse.BooleanOptionalAction, default=False,
+                        help="启用脱敏键鼠交互统计；官方启动入口默认开启，可用 --no-input-monitor 关闭")
+    parser.add_argument("--event-diagnostics", action="store_true",
+                        help="诊断模式：记录脱敏的窗口事件类别与合并批次大小")
     parser.add_argument("--no-clear", action="store_true", help="不清屏，改为连续追加仪表盘快照")
     parser.add_argument("--log", type=Path, default=ROOT / "runtime" / "logs" / "window_activity.jsonl")
     parser.add_argument("--activity-window", type=float, default=300, help="交互统计时间窗（秒）")
     parser.add_argument("--focus-window", type=float, default=1800, help="专注汇总时间窗（秒）")
     parser.add_argument("--high-frequency-per-minute", type=float, default=12, help="高频交互阈值（次/分钟）")
     parser.add_argument("--minimum-interactions", type=int, default=6, help="高频判断所需最少交互次数")
+    return parser
+
+
+def main() -> int:
+    if hasattr(sys.stdout, "reconfigure"):
+        sys.stdout.reconfigure(encoding="utf-8")
+    parser = _argument_parser()
     args = parser.parse_args()
     if (args.interval <= 0 or args.display_interval <= 0 or args.duration < 0 or args.activity_window <= 0 or args.focus_window <= 0
             or args.minimum_interactions < 1):
@@ -177,24 +195,61 @@ def main() -> int:
 
     peripheral = WindowActivityPeripheral(activity_window_seconds=args.activity_window,
         focus_window_seconds=args.focus_window, high_frequency_per_minute=args.high_frequency_per_minute,
-        minimum_interactions=args.minimum_interactions)
+        minimum_interactions=args.minimum_interactions, event_diagnostics_enabled=args.event_diagnostics)
     logger = WindowActivityLog(args.log)
     peripheral.start(input_monitor=args.input_monitor)
     deadline = time.monotonic() + args.duration if args.duration else None
-    last_display_at: float | None = None
     recent_events: deque[str] = deque(maxlen=6)
     clear_screen = not args.no_clear and sys.stdout.isatty()
+    # 建立初始状态；之后由 Windows 事件冲动驱动，低频校准只负责兜底。
+    last_messages = peripheral.collect_messages()
+    logger.append(last_messages)
+    recent_events.extend(_event_lines(last_messages))
+    next_calibration_at = time.monotonic() + args.interval
+    next_display_at = time.monotonic()
+    last_acquisition = "启动基线"
     try:
         while deadline is None or time.monotonic() < deadline:
-            messages = peripheral.collect_messages()
-            logger.append(messages)
-            recent_events.extend(_event_lines(messages))
             now = time.monotonic()
-            if last_display_at is None or now - last_display_at >= args.display_interval:
-                _draw_dashboard(_render_dashboard(messages, peripheral, list(recent_events), args.interval,
-                    args.display_interval), clear_screen)
-                last_display_at = now
-            time.sleep(args.interval)
+            if now >= next_display_at:
+                display_messages = peripheral.collect_local_time_messages() or last_messages
+                _draw_dashboard(_render_dashboard(display_messages, peripheral, list(recent_events), args.interval,
+                    args.display_interval, f"本地时间脉冲（不读取 Windows）｜最近：{last_acquisition}"), clear_screen)
+                next_display_at = now + args.display_interval
+
+            wake_at = min(next_calibration_at, next_display_at, deadline or float("inf"))
+            foreground_due = peripheral.foreground_resolution_due_seconds()
+            foreground_due_at = None
+            if foreground_due is not None:
+                foreground_due_at = time.monotonic() + foreground_due
+                wake_at = min(wake_at, foreground_due_at)
+            messages = peripheral.wait_for_event_messages(max(0.0, wake_at - time.monotonic()))
+            now = time.monotonic()
+            if messages:
+                last_messages = messages
+                last_acquisition = "事件冲动"
+                logger.append(messages)
+                recent_events.extend(_event_lines(messages))
+                # 新系统事实已到达，立即展示；不必等下一次本地时间脉冲。
+                next_display_at = now
+
+            if not messages and _deadline_reached(foreground_due_at):
+                resolution_messages = peripheral.collect_foreground_resolution_messages()
+                if resolution_messages:
+                    last_messages = resolution_messages
+                    last_acquisition = "前台一次性重读"
+                    logger.append(resolution_messages)
+                    recent_events.extend(_event_lines(resolution_messages))
+                    next_display_at = time.monotonic()
+
+            now = time.monotonic()
+            if now >= next_calibration_at:
+                # 事件遗漏、桌面切换和 Explorer 重启等情况由此收敛回完整快照。
+                last_messages = peripheral.collect_messages()
+                last_acquisition = "低频校准"
+                logger.append(last_messages)
+                recent_events.extend(_event_lines(last_messages))
+                next_calibration_at = now + args.interval
     except KeyboardInterrupt:
         print("\n已停止观察。")
     finally:

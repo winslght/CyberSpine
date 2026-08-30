@@ -1,5 +1,7 @@
 # CyberSpine 项目立项与全景白皮书 (Project Proposal & Vision Whitepaper)
 
+> **PoC 阶段的项目愿景资料，非当前工程规格或产品承诺。** 本文帮助理解最初的问题与方向；当前正式范围、隐私边界和实施顺序以 [`../current/`](../current/) 下的有效文档为准。
+
 **项目名称**：CyberSpine (赛博脊椎)  
 **项目代号**：Project CyberSpine  
 **版本定义**：v3.2.0 (全脑区仿生协同、三位一体数字生命与开源生态全景定稿版)  

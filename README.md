@@ -1,14 +1,16 @@
 # CyberSpine
 
-CyberSpine is a Windows-local perception experiment. It turns the current desktop state into structured context that an upper-level AI agent can read through MCP. Any desktop action requires explicit user approval.
+CyberSpine is engineering a Windows-local perception and controlled-context foundation from an earlier proof of concept (PoC). The new mainline turns facts within the user's authorized scope into structured context that an upper-level AI agent can read through MCP. Any desktop action requires explicit user approval.
 
-## The current demo loop
+> **Engineering status.** The retained `perceptors → pacing → app → mcp` system, cockpit, and multi-perceptor implementation are PoC material, not the production mainline. New capabilities belong only on the unified-message mainline: `sensing → core → context → adapters/apps → actions`. Legacy modules may serve only as compatibility adapters or behavioral acceptance references. See [`docs/current/PROJECT_DIRECTION.md`](docs/current/PROJECT_DIRECTION.md).
+
+## The current engineering-demo loop
 
 ```text
 Windows signals → structured context → MCP read → user approval → limited desktop action
 ```
 
-The demo focuses on foreground context, basic system health, shallow workspace/storage information, and privacy-conscious clipboard classification. It validates whether local system awareness can provide useful and safe context to an AI agent; it is not an autonomous desktop controller.
+The first engineering vertical slice focuses on privacy-bounded window facts. It turns the PoC product direction into a maintainable, auditable minimal loop; it is not an autonomous desktop controller.
 
 ## Quick start
 

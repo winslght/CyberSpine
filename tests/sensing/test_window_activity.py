@@ -1,5 +1,41 @@
 from src.core.neural_message import MessageKind, PrivacyClass
 from src.sensing.window_activity import WindowActivityPeripheral
+from src.sensing.window_events import WindowEventTicket
+
+
+class FakeEventSource:
+    def __init__(self):
+        self.is_running = False
+        self.callback_error_count = 0
+        self.tickets = []
+
+    def start(self):
+        self.is_running = True
+        return True
+
+    def stop(self):
+        self.is_running = False
+
+    def drain(self):
+        tickets, self.tickets = self.tickets, []
+        return tickets
+
+    def wait(self, _timeout):
+        return None
+
+
+class FakeInventory:
+    def __init__(self, affected_window, foreground_window=None):
+        self.affected_window = affected_window
+        self.foreground_window_result = foreground_window
+        self.foreground_reads = 0
+
+    def window_for_handle(self, _hwnd):
+        return self.affected_window
+
+    def foreground_window(self):
+        self.foreground_reads += 1
+        return self.foreground_window_result
 
 
 def catalog(*windows):
@@ -25,12 +61,201 @@ def test_catalog_reports_all_windows_layout_process_and_foreground():
     assert state.payload_schema == "window.current_state@3"
     assert state.payload["foreground"]["application"] == "chrome.exe"
     assert state.payload["foreground"]["bounds"]["width"] == 800
+    assert state.payload["window_inventory_read_errors"] == 0
     assert directory.topic == "window.catalog"
     assert directory.payload_schema == "window.catalog@1"
     assert directory.payload["window_count"] == 3
     assert {item["application"] for item in directory.payload["windows"]} == {"explorer.exe", "chrome.exe", "WINWORD.EXE"}
     assert all(item["interaction"]["event_count"] == 0 for item in directory.payload["windows"])
     assert state.privacy == PrivacyClass.METADATA_ONLY
+
+
+def test_state_reports_only_inventory_read_error_count():
+    peripheral = WindowActivityPeripheral(catalog_provider=catalog(
+        window("win:browser", "chrome.exe", 20, foreground=True)))
+    inventory = FakeInventory(None)
+    inventory.read_error_count = 3
+    peripheral._inventory = inventory
+
+    state = peripheral.collect_messages()[0]
+
+    assert state.payload["window_inventory_read_errors"] == 3
+
+
+def test_event_impulse_coalesces_before_refreshing_window_facts():
+    now = [1.0]
+    source = FakeEventSource()
+    peripheral = WindowActivityPeripheral(catalog_provider=catalog(
+        window("win:browser", "chrome.exe", 20, foreground=True)), clock=lambda: now[0],
+        event_source=source, event_debounce_seconds=0.2)
+    assert peripheral.start() is True
+    peripheral.collect_messages()
+    source.tickets = [WindowEventTicket("foreground_changed", 20, 1.0)]
+    assert peripheral.collect_event_messages() == []
+    now[0] = 1.2
+    assert peripheral.collect_event_messages() == []
+    peripheral.stop()
+
+
+def test_unchanged_background_event_does_not_replace_foreground_or_emit_duplicate_state():
+    now = [0.0]
+    source = FakeEventSource()
+    chrome = window("win:14", "chrome.exe", 20, foreground=True)
+    editor = window("win:1e", "code.exe", 30, bounds={"left": 20, "top": 20, "width": 800, "height": 600})
+    peripheral = WindowActivityPeripheral(catalog_provider=catalog(chrome, editor), clock=lambda: now[0],
+        event_source=source, event_debounce_seconds=0.2)
+    peripheral.collect_messages()
+    inventory = FakeInventory(editor)
+    peripheral._inventory = inventory
+    source.tickets = [WindowEventTicket("location_changed", 30, 0.0)]
+    peripheral.collect_event_messages()
+    now[0] = 0.2
+    messages = peripheral.collect_event_messages()
+
+    assert inventory.foreground_reads == 0
+    assert messages == []
+
+
+def test_background_event_for_the_foreground_window_preserves_catalog_and_state_consistency():
+    now = [0.0]
+    source = FakeEventSource()
+    chrome = window("win:14", "chrome.exe", 20, foreground=True)
+    peripheral = WindowActivityPeripheral(catalog_provider=catalog(chrome), clock=lambda: now[0],
+        event_source=source, event_debounce_seconds=0.2, event_diagnostics_enabled=True)
+    peripheral.collect_messages()
+    # WindowsWindowInventory.window_for_handle() can report false here when
+    # GetForegroundWindow() is temporarily empty; a geometry update must not
+    # erase the previously confirmed foreground fact.
+    peripheral._inventory = FakeInventory(window("win:14", "chrome.exe", 20, foreground=False,
+                                                 bounds={"left": 40, "top": 20, "width": 800, "height": 600}))
+    source.tickets = [WindowEventTicket("location_changed", 20, 0.0)]
+    peripheral.collect_event_messages()
+    now[0] = 0.2
+    messages = peripheral.collect_event_messages()
+
+    state = next(message for message in messages if message.topic == "window.current_state")
+    directory = next(message for message in messages if message.topic == "window.catalog")
+    foregrounds = [item for item in directory.payload["windows"] if item["is_foreground"]]
+    assert state.payload["foreground_status"] == "available"
+    assert state.payload["foreground"]["window_id"] == "win:14"
+    assert state.payload["event_diagnostics"] == {
+        "source": "win_event_hook", "ticket_count": 1, "kinds": ["location_changed"],
+        "window_identifiers_included": False}
+    assert [item["window_id"] for item in foregrounds] == ["win:14"]
+
+
+def test_hidden_confirmed_foreground_refreshes_to_the_new_foreground_window():
+    now = [0.0]
+    source = FakeEventSource()
+    chrome = window("win:14", "chrome.exe", 20, foreground=True)
+    editor = window("win:1e", "code.exe", 30, foreground=True)
+    peripheral = WindowActivityPeripheral(catalog_provider=catalog(chrome), clock=lambda: now[0],
+        event_source=source, event_debounce_seconds=0.2)
+    peripheral.collect_messages()
+    peripheral._inventory = FakeInventory(None, editor)
+    source.tickets = [WindowEventTicket("hidden", 20, 0.0)]
+
+    peripheral.collect_event_messages()
+    now[0] = 0.2
+    messages = peripheral.collect_event_messages()
+
+    state = next(message for message in messages if message.topic == "window.current_state")
+    assert state.payload["foreground_status"] == "available"
+    assert state.payload["foreground"]["window_id"] == "win:1e"
+    assert any(message.topic == "window.focus_changed" for message in messages)
+
+
+def test_hidden_confirmed_foreground_keeps_catalog_consistent_during_empty_foreground_read():
+    now = [0.0]
+    source = FakeEventSource()
+    chrome = window("win:14", "chrome.exe", 20, foreground=True)
+    peripheral = WindowActivityPeripheral(catalog_provider=catalog(chrome), clock=lambda: now[0],
+        event_source=source, event_debounce_seconds=0.2)
+    peripheral.collect_messages()
+    peripheral._inventory = FakeInventory(None)
+    source.tickets = [WindowEventTicket("hidden", 20, 0.0)]
+
+    peripheral.collect_event_messages()
+    now[0] = 0.2
+    messages = peripheral.collect_event_messages()
+
+    state = next(message for message in messages if message.topic == "window.current_state")
+    directory = next(message for message in messages if message.topic == "window.catalog")
+    assert state.payload["foreground_status"] == "temporarily_unresolved"
+    assert state.payload["foreground"]["window_id"] == "win:14"
+    assert [item["window_id"] for item in directory.payload["windows"] if item["is_foreground"]] == ["win:14"]
+
+
+def test_chatgpt_to_terminal_recovers_on_the_one_shot_foreground_retry():
+    now = [0.0]
+    source = FakeEventSource()
+    chatgpt = window("win:14", "ChatGPT.exe", 20, foreground=True)
+    terminal = window("win:1e", "WindowsTerminal.exe", 30, foreground=True)
+    peripheral = WindowActivityPeripheral(catalog_provider=catalog(chatgpt), clock=lambda: now[0],
+        event_source=source, event_debounce_seconds=0.2, foreground_grace_seconds=1.0)
+    peripheral.collect_messages()
+    inventory = FakeInventory(None)
+    peripheral._inventory = inventory
+    source.tickets = [WindowEventTicket("foreground_changed", 30, 0.0)]
+
+    peripheral.collect_event_messages()
+    now[0] = 0.2
+    pending = peripheral.collect_event_messages()
+    pending_state = next(message for message in pending if message.topic == "window.current_state")
+    assert pending_state.payload["foreground_status"] == "temporarily_unresolved"
+
+    inventory.foreground_window_result = terminal
+    now[0] = 1.2
+    resolved = peripheral.collect_foreground_resolution_messages()
+    state = next(message for message in resolved if message.topic == "window.current_state")
+    focus = next(message for message in resolved if message.topic == "window.focus_changed")
+    assert inventory.foreground_reads == 2
+    assert state.payload["foreground_status"] == "available"
+    assert state.payload["foreground"]["application"] == "WindowsTerminal.exe"
+    assert focus.payload["previous"]["application"] == "ChatGPT.exe"
+    assert focus.payload["current"]["application"] == "WindowsTerminal.exe"
+
+
+def test_foreground_resolution_retries_only_once_when_windows_still_returns_empty():
+    now = [0.0]
+    source = FakeEventSource()
+    chatgpt = window("win:14", "ChatGPT.exe", 20, foreground=True)
+    peripheral = WindowActivityPeripheral(catalog_provider=catalog(chatgpt), clock=lambda: now[0],
+        event_source=source, event_debounce_seconds=0.2, foreground_grace_seconds=1.0)
+    peripheral.collect_messages()
+    inventory = FakeInventory(None)
+    peripheral._inventory = inventory
+    source.tickets = [WindowEventTicket("foreground_changed", 30, 0.0)]
+    peripheral.collect_event_messages()
+    now[0] = 0.2
+    peripheral.collect_event_messages()
+
+    now[0] = 1.2
+    unresolved = peripheral.collect_foreground_resolution_messages()
+    state = next(message for message in unresolved if message.topic == "window.current_state")
+    assert state.payload["foreground_status"] == "unresolved"
+    assert peripheral.collect_foreground_resolution_messages() == []
+    assert inventory.foreground_reads == 2
+
+
+def test_local_time_pulse_updates_dwell_without_reading_catalog_again():
+    now = [0.0]
+    calls = [0]
+
+    def source_catalog():
+        calls[0] += 1
+        return [window("win:browser", "chrome.exe", 20, foreground=True)]
+
+    peripheral = WindowActivityPeripheral(catalog_provider=source_catalog, clock=lambda: now[0])
+    peripheral.collect_messages()
+    now[0] = 12.0
+    messages = peripheral.collect_local_time_messages()
+
+    state = next(message for message in messages if message.topic == "window.current_state")
+    summary = next(message for message in messages if message.topic == "window.time_window_summary")
+    assert calls[0] == 1
+    assert state.payload["foreground"]["focus_dwell_seconds"] == 12.0
+    assert summary.payload["observed_seconds"] == 12.0
 
 
 def test_catalog_distinguishes_screen_present_user_windows_from_minimized_and_system_surfaces():
@@ -83,6 +308,61 @@ def test_catalog_reports_window_state_and_geometry_change_candidates_without_inp
     assert display_change["current_display"]["id"] == secondary["id"]
     assert display_change["previous_display"]["id"] == primary["id"]
     assert display_change["is_in_progress_candidate"] is False
+
+
+def test_input_method_and_synchronized_shell_geometry_only_update_internal_baselines():
+    input_bounds = {"left": 396, "top": 957, "width": 467, "height": 80}
+    shell_lower_bounds = {"left": 396, "top": 989, "width": 467, "height": 48}
+    current = [[
+        window("win:browser", "ChatGPT.exe", 20, foreground=True),
+        window("win:input", "TextInputHost.exe", 30, window_title="", bounds=input_bounds),
+        window("win:shell", "explorer.exe", 40, window_title="", bounds=input_bounds),
+        window("win:shell-lower", "explorer.exe", 40, window_title="", bounds=shell_lower_bounds),
+        window("win:explorer", "explorer.exe", 40, window_title="Downloads",
+               bounds={"left": 40, "top": 100, "width": 1000, "height": 800}),
+    ]]
+    peripheral = WindowActivityPeripheral(catalog_provider=lambda: current[0])
+    peripheral.collect_messages()
+
+    moved_input_bounds = {"left": 424, "top": 957, "width": 519, "height": 80}
+    moved_shell_lower_bounds = {"left": 424, "top": 989, "width": 519, "height": 48}
+    current[0] = [
+        window("win:browser", "ChatGPT.exe", 20, foreground=True),
+        window("win:input", "TextInputHost.exe", 30, window_title="", bounds=moved_input_bounds),
+        window("win:shell", "explorer.exe", 40, window_title="", bounds=moved_input_bounds),
+        window("win:shell-lower", "explorer.exe", 40, window_title="", bounds=moved_shell_lower_bounds),
+        window("win:explorer", "explorer.exe", 40, window_title="Downloads",
+               bounds={"left": 40, "top": 100, "width": 1000, "height": 800}),
+    ]
+    messages = peripheral.collect_messages()
+    directory = next(message for message in messages if message.topic == "window.catalog")
+    presentations = {item["window_id"]: item["presentation"]["state"]
+                     for item in directory.payload["windows"]}
+
+    assert not any(message.topic == "window.geometry_changed" for message in messages)
+    assert presentations["win:input"] == "system_surface"
+    assert presentations["win:shell"] == "system_surface"
+    assert presentations["win:shell-lower"] == "system_surface"
+    assert presentations["win:explorer"] == "screen_present"
+    assert peripheral._last_geometry["win:input"]["bounds"] == moved_input_bounds
+    assert peripheral._last_geometry["win:shell-lower"]["bounds"] == moved_shell_lower_bounds
+
+    current[0][-1] = window("win:explorer", "explorer.exe", 40, window_title="Downloads",
+                            bounds={"left": 80, "top": 100, "width": 1000, "height": 800})
+    user_window_messages = peripheral.collect_messages()
+    geometry = next(message for message in user_window_messages if message.topic == "window.geometry_changed")
+    assert [change["window"]["window_id"] for change in geometry.payload["changes"]] == ["win:explorer"]
+
+
+def test_system_surface_geometry_is_excluded_from_event_fact_signature():
+    base = {"window_id": "win:input", "presentation": {"state": "system_surface"},
+            "bounds": {"left": 10, "top": 10, "width": 100, "height": 40},
+            "geometry_activity": {"state": "stationary"}}
+    moved = {**base, "bounds": {"left": 30, "top": 10, "width": 140, "height": 40},
+             "geometry_activity": {"state": "geometry_changed"}}
+
+    assert WindowActivityPeripheral._fact_signature([base], "available") == \
+        WindowActivityPeripheral._fact_signature([moved], "available")
 
 
 def test_focus_dwell_and_focus_change_are_tracked_per_window():
@@ -182,28 +462,78 @@ def test_no_attributable_foreground_pauses_focus_attribution_without_title_leaka
     peripheral.collect_messages()
     now[0] = 5.0
     current[0] = [window("win:browser", "chrome.exe", 20, window_title="private title")]
-    unavailable = peripheral.collect_messages()
+    unresolved = peripheral.collect_messages()
+    state = next(message for message in unresolved if message.topic == "window.current_state")
+
+    assert state.payload["foreground_status"] == "temporarily_unresolved"
+    assert state.payload["foreground_confidence"] == "last_confirmed"
+    assert "window_title" not in state.payload
+    now[0] = 6.0
+    unavailable = peripheral.collect_foreground_resolution_messages()
     state = next(message for message in unavailable if message.topic == "window.current_state")
     summary = next(message for message in unavailable if message.topic == "window.time_window_summary")
-    availability = next(message for message in unavailable
-                        if message.topic == "window.foreground_availability_changed")
 
     assert state.payload["foreground"] is None
-    assert state.payload["foreground_status"] == "unavailable"
+    assert state.payload["foreground_status"] == "unresolved"
     assert "window_title" not in state.payload
-    assert availability.payload["current_status"] == "unavailable"
+    assert not any(message.topic == "window.foreground_availability_changed" for message in unavailable)
     assert summary.payload["unattributed_seconds"] == 0.0
     now[0] = 15.0
     current[0] = [window("win:editor", "code.exe", 30, foreground=True)]
     recovered = peripheral.collect_messages()
     recovered_summary = next(message for message in recovered if message.topic == "window.time_window_summary")
     focus_event = next(message for message in recovered if message.topic == "window.focus_changed")
-    recovery = next(message for message in recovered if message.topic == "window.foreground_availability_changed")
 
-    assert recovered_summary.payload["observed_seconds"] == 5.0
-    assert recovered_summary.payload["unattributed_seconds"] == 10.0
+    assert recovered_summary.payload["observed_seconds"] == 6.0
+    assert recovered_summary.payload["unattributed_seconds"] == 9.0
     assert recovered_summary.payload["focus_switch_count"] == 1
-    assert recovery.payload["recovered_foreground"]["application"] == "code.exe"
-    assert "window_title" not in recovery.payload["recovered_foreground"]
     assert focus_event.payload["previous"]["application"] == "chrome.exe"
     assert focus_event.payload["current"]["application"] == "code.exe"
+
+
+def test_missing_foreground_uses_a_one_shot_grace_period_before_marking_unresolved():
+    current = [[window("win:browser", "chrome.exe", 20, foreground=True)]]
+    now = [0.0]
+    peripheral = WindowActivityPeripheral(catalog_provider=lambda: current[0], clock=lambda: now[0],
+        focus_window_seconds=60, foreground_grace_seconds=1.0)
+    peripheral.collect_messages()
+    now[0] = 5.0
+    current[0] = [window("win:browser", "chrome.exe", 20)]
+    unresolved = peripheral.collect_messages()
+    unresolved_state = next(message for message in unresolved if message.topic == "window.current_state")
+
+    assert unresolved_state.payload["foreground_status"] == "temporarily_unresolved"
+    assert unresolved_state.payload["foreground_confidence"] == "last_confirmed"
+    assert not any(message.topic == "window.foreground_availability_changed" for message in unresolved)
+    assert peripheral.foreground_resolution_due_seconds() == 1.0
+
+    now[0] = 6.0
+    confirmed = peripheral.collect_foreground_resolution_messages()
+    state = next(message for message in confirmed if message.topic == "window.current_state")
+    assert state.payload["foreground_status"] == "unresolved"
+    assert state.payload["foreground_resolution_reason"] == "foreground_resolution_timeout"
+    assert not any(message.topic == "window.foreground_availability_changed" for message in confirmed)
+
+
+def test_focus_and_unattributed_time_are_a_partition_with_bounded_focus_ratios():
+    current = [[window("win:browser", "chrome.exe", 20, foreground=True)]]
+    now = [0.0]
+    peripheral = WindowActivityPeripheral(catalog_provider=lambda: current[0], clock=lambda: now[0],
+        focus_window_seconds=60, foreground_grace_seconds=1.0)
+    peripheral.collect_messages()
+    now[0] = 5.0
+    current[0] = [window("win:browser", "chrome.exe", 20)]
+    peripheral.collect_messages()
+    now[0] = 6.0
+    peripheral.collect_local_time_messages()
+    now[0] = 10.0
+    peripheral.collect_local_time_messages()
+    now[0] = 11.0
+    current[0] = [window("win:editor", "code.exe", 30, foreground=True)]
+    messages = peripheral.collect_messages()
+
+    summary = next(message for message in messages if message.topic == "window.time_window_summary").payload
+    focus_total = sum(item["focus_seconds"] for item in summary["windows"])
+    assert focus_total + summary["unattributed_seconds"] == summary["elapsed_seconds"]
+    assert all(0 <= item["focus_ratio"] <= 1 for item in summary["windows"])
+    assert summary["time_accounting_invariant"] == "focus_plus_unattributed_equals_elapsed"

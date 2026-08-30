@@ -32,13 +32,13 @@ CyberSpine 内部只有一条消息主干。末梢神经、神经中枢、顶层
 
 | 消息 | topic | schema | 行为 |
 | --- | --- | --- | --- |
-| 状态 | `window.current_state` | `window.current_state@3` | 当前前台窗口或明确的前台不可归因状态、专注驻留时间、交互监听健康状态。|
+| 状态 | `window.current_state` | `window.current_state@3` | 当前确认前台窗口、短暂未解析的最后确认前台，或持续未解析状态；包含专注驻留时间、前台置信度、事件回调错误计数与脱敏窗口读取错误计数。|
 | 状态 | `window.catalog` | `window.catalog@1` | 完整顶层窗口目录，以及基于边界、最小化状态和已知系统宿主分类得出的屏幕呈现状态与用户窗口计数。|
 | 事件 | `window.focus_changed` | `window.focus_changed@2` | 首次建立基线；后续前台窗口变更时上报前后窗口事实。|
 | 事件 | `window.high_interaction_changed` | `window.high_interaction_changed@1` | 指定时窗内高频交互窗口集合发生变化。|
 | 状态 | `window.time_window_summary` | `window.time_window_summary@1` | 窗口末梢在有限时间窗内整合出的焦点片段、专注时长/占比、切换次数和无内容交互统计。|
 | 事件 | `window.foreground_availability_changed` | `window.foreground_availability_changed@1` | 可归因前台窗口消失或恢复；恢复时附带脱敏后的实际前台窗口身份，例如任务视图等系统过渡态。|
-| 事件 | `window.geometry_changed` | `window.geometry_changed@1` | 顶层窗口的位置、尺寸或关联显示器变化；鼠标按住且边界变化时仅标为拖拽/调整大小候选。|
+| 事件 | `window.geometry_changed` | `window.geometry_changed@1` | 用户顶层窗口的位置、尺寸或关联显示器变化；鼠标按住且边界变化时仅标为拖拽/调整大小候选。输入法系统表面及同步 Shell 伴生表面只更新内部基线，不产生该事件。|
 
 它是窗口事实的唯一采集实现。旧 `ForegroundFocusPerceptor` 仅是到旧
 `RawSomaticSignal` 的兼容适配器，不得再直接调用 User32 或维护第二套焦点状态。
@@ -49,7 +49,7 @@ CyberSpine 内部只有一条消息主干。末梢神经、神经中枢、顶层
 
 每个窗口还带有 `window_state`：最大化、置顶、关联显示器及“覆盖关联显示器边界”的全屏候选。全屏候选不代表已经识别独占全屏或像素级可见性。`geometry_activity` 只反映本次目录采样所见的边界变化；仅当鼠标按键按住且边界变化时才标为移动、调整大小或两者兼有的进行中候选。它不记录鼠标坐标、按键类型或窗口内容。
 
-前台驻留时间的字段是 `focus_dwell_seconds`：它从本插件开始观察该窗口或最近一次焦点切换开始计时，不声称知道插件启动前的历史驻留时长。默认活动观察窗为 300 秒；高频判定默认需同时达到至少 6 次交互和每分钟 12 次交互，运行时可配置。
+前台驻留时间的字段是 `focus_dwell_seconds`：它从本插件开始观察该窗口或最近一次焦点切换开始计时，不声称知道插件启动前的历史驻留时长。若一次系统读取暂时拿不到前台句柄，`foreground_status` 会先进入 `temporarily_unresolved`，并以 `foreground_confidence=last_confirmed` 明示其中的窗口仅为最后确认事实；默认 1 秒的一次性宽限确认期内不会伪造失焦事件。确认期到期时末梢只执行一次真正的前台重读：成功则立即确认新前台，仍为空才进入 `unresolved` 并停止焦点归因；本地展示脉冲不能推进这一状态机。`unresolved` 只表示末梢没有可靠事实，不能推断用户没有前台。未来只有接入锁屏或安全桌面等明确系统证据后，才可使用 `unavailable`。默认活动观察窗为 300 秒；高频判定默认需同时达到至少 6 次交互和每分钟 12 次交互，运行时可配置。对象级 Windows 事件仅接受顶层窗口自身；被过滤的内部控件事件不会触发采集。若一次已接受的事件批次确实改变了窗口层事实，诊断模式可通过观察器的 `--event-diagnostics` 选项让 `window.current_state` 包含脱敏的 `event_diagnostics`（来源、票据数量、事件类别），不包含句柄、窗口标题或内容；未改变窗口层事实的批次不投递状态消息。
 
 `window.time_window_summary` 同样只从插件启动后观察到的事实计算，默认覆盖最近 1800 秒。它由窗口末梢而不是网关生成：其中 `segments` 保留按时间顺序的焦点片段，`windows` 汇总每个窗口的专注秒数、占比和交互统计，`coverage_ratio` 明确可归因观察时长占完整时间窗的程度，`unattributed_seconds` 记录任务视图、锁屏等前台不可归因的时长。它不包含窗口标题、输入内容或用户意图推断。
 

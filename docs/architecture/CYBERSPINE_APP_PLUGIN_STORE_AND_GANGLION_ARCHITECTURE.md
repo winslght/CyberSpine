@@ -1,5 +1,7 @@
 # CyberSpine 独立桌面 APP、神经插件商店与分脑分岔协同网络架构白皮书 (Neural App, Plugin Store & Distributed Ganglion Architecture)
 
+> **历史 PoC 愿景白皮书，非当前工程规格。** 独立桌面 App、插件商店、模型管理和分脑网络不属于当前最小闭环；不得将本文件的页面、模块或阶段当作排期。当前范围以 [`../current/DEMO_SCOPE.md`](../current/DEMO_SCOPE.md) 为准。
+
 **文档编号**：DOC-ARCH-004  
 **版本**：v4.0.0-Blueprint  
 **定位**：CyberSpine 从“底层中枢守护进程”演进为“**全功能独立桌面原生 APP + 模块化插件商店 + 端侧小模型管理 + 分脑分岔协同网络**”的下一代顶层架构白皮书。
