@@ -1,0 +1,12 @@
+{
+  "mcpServers": {
+    "cyberspine-neural-link": {
+      "command": "C:\\Users\\winslght\\.cache\\codex-runtimes\\codex-primary-runtime\\dependencies\\python\\python.exe",
+      "args": ["src/mcp/server.py"],
+      "env": {
+        "PYTHONPATH": ".",
+        "PYTHONIOENCODING": "utf-8"
+      }
+    }
+  }
+}

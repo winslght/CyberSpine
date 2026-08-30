@@ -1,0 +1,52 @@
+name: "🐛 Bug Report / 缺陷反馈"
+description: "报告 CyberSpine 运行时的异常、Windows 兼容性问题或崩溃"
+labels: ["bug", "triage"]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        感谢反馈缺陷！请在提交前查阅 [docs/tracking/ISSUE_AND_BUG_TRACKER.md](../docs/tracking/ISSUE_AND_BUG_TRACKER.md) 确认是否已有相同已知问题与解决对策。
+  - type: input
+    id: version
+    attributes:
+      label: "CyberSpine 版本 / Git Commit"
+      placeholder: "例如: v0.2.0 或 commit hash"
+    validations:
+      required: true
+  - type: dropdown
+    id: os
+    attributes:
+      label: "操作系统 (OS)"
+      options:
+        - "Windows 11"
+        - "Windows 10"
+        - "Windows Server"
+        - "Linux / macOS (Mock Testing)"
+    validations:
+      required: true
+  - type: dropdown
+    id: component
+    attributes:
+      label: "相关子系统模块"
+      options:
+        - "IO 感知末梢 (perceptors/io)"
+        - "信号契约模型 (models)"
+        - "呼吸节律中枢 (pacing)"
+        - "脊髓调度与 SLM (spinal_core)"
+        - "BNP 神经插件 (plugins)"
+        - "FastMCP 桥接"
+    validations:
+      required: true
+  - type: textarea
+    id: description
+    attributes:
+      label: "缺陷描述与复现步骤"
+      placeholder: "1. 启动 ...\n2. 插入 USB 存储设备 ...\n3. 触发异常 ..."
+    validations:
+      required: true
+  - type: textarea
+    id: logs
+    attributes:
+      label: "错误日志与 Traceback"
+      placeholder: "请粘贴终端输出或日志内容"
+      render: shell

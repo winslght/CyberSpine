@@ -1,0 +1,466 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>CyberSpine Neural Cockpit</title>
+  <link rel="stylesheet" href="styles/winui3.css">
+</head>
+<body>
+  <!-- WinUI 3 Navigation View Shell (基于 WinUIonWeb 架构) -->
+  <div class="win-nav-shell">
+    
+    <!-- 左侧可收缩导航栏 (win-nav-left-panel) -->
+    <nav class="win-nav-left-panel" id="main-nav-left-panel">
+      <!-- 汉堡按钮与品牌头 (win-nav-pane-command-row) -->
+      <div class="win-nav-pane-command-row">
+        <div class="brand-header">
+          <button class="win-nav-hamburger" id="nav-toggle-btn" title="收缩/展开导航栏" onclick="toggleNavRail()">
+            <svg viewBox="0 0 24 24"><path d="M3 18h18v-2H3v2zm0-5h18v-2H3v2zm0-7v2h18V6H3z"/></svg>
+          </button>
+          <div class="brand-logo-plate">
+            <svg viewBox="0 0 24 24"><path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm1 17.93c-3.95-.49-7-3.85-7-7.93 0-.62.08-1.21.21-1.79L9 15v1c0 1.1.9 2 2 2v1.93zm6.9-2.54c-.26-.81-1-1.39-1.9-1.39h-1v-3c0-.55-.45-1-1-1H8v-2h2c.55 0 1-.45 1-1V7h2c1.1 0 2-.9 2-2v-.41c2.93 1.19 5 4.06 5 7.41 0 2.08-.8 3.97-2.1 5.39z"/></svg>
+          </div>
+          <div class="brand-text-block">
+            <div class="brand-title">CyberSpine</div>
+            <div class="brand-subtitle">神经中枢驾驶舱 v4.3.0</div>
+          </div>
+        </div>
+      </div>
+
+      <!-- 8 大一级路由导航项 (win-nav-item) -->
+      <div class="win-nav-item is-selected" data-view="dashboard" title="第 1 页：中控仪表盘">
+        <span class="icon">
+          <svg viewBox="0 0 24 24"><path d="M3 13h8V3H3v10zm0 8h8v-6H3v6zm10 0h8V11h-8v10zm0-18v6h8V3h-8z"/></svg>
+        </span>
+        <span class="label">中控仪表盘</span>
+      </div>
+
+      <div class="win-nav-item" data-view="plugins" title="第 2 页：神经末梢插件商店">
+        <span class="icon">
+          <svg viewBox="0 0 24 24"><path d="M20.5 11H19V7c0-1.1-.9-2-2-2h-4V3.5C13 2.12 11.88 1 10.5 1S8 2.12 8 3.5V5H4c-1.1 0-1.99.9-1.99 2v3.8H3.5c1.49 0 2.7 1.21 2.7 2.7s-1.21 2.7-2.7 2.7H2V20c0 1.1.9 2 2 2h3.8v-1.5c0-1.49 1.21-2.7 2.7-2.7s2.7 1.21 2.7 2.7V22H17c1.1 0 2-.9 2-2v-4h1.5c1.38 0 2.5-1.12 2.5-2.5s-1.12-2.5-2.5-2.5z"/></svg>
+        </span>
+        <span class="label">神经末梢商店</span>
+      </div>
+
+      <div class="win-nav-item" data-view="models" title="第 3 页：端侧模型中枢与监控">
+        <span class="icon">
+          <svg viewBox="0 0 24 24"><path d="M12 3c-4.97 0-9 4.03-9 9 0 2.12.74 4.07 1.97 5.61L4.35 19.4c-.39.39-.39 1.02 0 1.41.39.39 1.02.39 1.41 0l1.9-1.9C9.17 19.58 10.53 20 12 20c4.97 0 9-4.03 9-9s-4.03-9-9-9z"/></svg>
+        </span>
+        <span class="label">端侧模型管理</span>
+      </div>
+
+      <div class="win-nav-item" data-view="cortex" title="第 4 页：上层大脑链接管理">
+        <span class="icon">
+          <svg viewBox="0 0 24 24"><path d="M19.35 10.04C18.67 6.59 15.64 4 12 4 9.11 4 6.6 5.64 5.35 8.04 2.34 8.36 0 10.91 0 14c0 3.31 2.69 6 6 6h13c2.76 0 5-2.24 5-5 0-2.64-2.05-4.78-4.65-4.96zM19 18H6c-2.21 0-4-1.79-4-4 0-2.05 1.53-3.76 3.56-3.97l1.07-.11.5-.95C8.08 7.14 9.94 6 12 6c2.62 0 4.88 1.86 5.39 4.43l.3 1.5 1.53.11c1.56.1 2.78 1.41 2.78 2.96 0 1.65-1.35 3-3 3z"/></svg>
+        </span>
+        <span class="label">上层大脑链接</span>
+      </div>
+
+      <div class="win-nav-item" data-view="topology" title="第 5 页：循环神经走向路线图">
+        <span class="icon">
+          <svg viewBox="0 0 24 24"><path d="M19 3H5c-1.1 0-2 .9-2 2v14c0 1.1.9 2 2 2h14c1.1 0 2-.9 2-2V5c0-1.1-.9-2-2-2zm-5 14H7v-2h7v2zm3-4H7v-2h10v2zm0-4H7V7h10v2z"/></svg>
+        </span>
+        <span class="label">神经走向拓扑</span>
+      </div>
+
+      <div class="win-nav-item" data-view="logs" title="第 6 页：核心神经中枢软件日志">
+        <span class="icon">
+          <svg viewBox="0 0 24 24"><path d="M14 2H6c-1.1 0-1.99.9-1.99 2L4 20c0 1.1.89 2 1.99 2H18c1.1 0 2-.9 2-2V8l-6-6zm2 16H8v-2h8v2zm0-4H8v-2h8v2zm-3-5V3.5L18.5 9H13z"/></svg>
+        </span>
+        <span class="label">中枢运行日志</span>
+      </div>
+
+      <div class="win-nav-item" data-view="mcp" title="第 7 页：双向 MCP 协议互联中枢">
+        <span class="icon">
+          <svg viewBox="0 0 24 24"><path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm1 15h-2v-6h2v6zm0-8h-2V7h2v2z"/></svg>
+        </span>
+        <span class="label">双向 MCP 互联</span>
+      </div>
+
+      <div class="win-nav-spacer"></div>
+
+      <div class="win-nav-footer-menu">
+        <div class="win-nav-item" data-view="settings" title="第 8 页：系统全局设置">
+          <span class="icon">
+            <svg viewBox="0 0 24 24"><path d="M19.14 12.94c.04-.3.06-.61.06-.94 0-.32-.02-.64-.07-.94l2.03-1.58c.18-.14.23-.41.12-.61l-1.92-3.32c-.12-.22-.37-.29-.59-.22l-2.39.96c-.5-.38-1.03-.7-1.62-.94l-.36-2.54c-.04-.24-.24-.41-.48-.41h-3.84c-.24 0-.43.17-.47.41l-.36 2.54c-.59.24-1.13.57-1.62.94l-2.39-.96c-.22-.08-.47 0-.59.22L2.74 8.87c-.12.21-.08.47.12.61l2.03 1.58c-.05.3-.09.63-.09.94s.02.64.07.94l-2.03 1.58c-.18.14-.23.41-.12.61l1.92 3.32c.12.22.37.29.59.22l2.39-.96c.5.38 1.03.7 1.62.94l.36 2.54c.05.24.24.41.48.41h3.84c.24 0 .44-.17.47-.41l.36-2.54c.59-.24 1.13-.56 1.62-.94l2.39.96c.22.08.47 0 .59-.22l1.92-3.32c.12-.22.07-.47-.12-.61l-2.01-1.58zM12 15.6c-1.98 0-3.6-1.62-3.6-3.6s1.62-3.6 3.6-3.6 3.6 1.62 3.6 3.6-1.62 3.6-3.6 3.6z"/></svg>
+          </span>
+          <span class="label">系统设置</span>
+        </div>
+      </div>
+    </nav>
+
+    <!-- 右侧内容主区域 (win-nav-content-frame) -->
+    <main class="win-nav-content-frame">
+      <!-- 顶栏 (win-titlebar) -->
+      <header class="win-titlebar">
+        <div class="view-title">
+          <span id="header-view-title">中控仪表盘 (Neural Pulse Center)</span>
+        </div>
+        <div class="header-actions">
+          <!-- 实时模型热切换 ComboBox (WinComboBox) -->
+          <div class="win-combo-box" title="热切换端侧小脑推理大模型">
+            <select id="global-model-selector" onchange="handleModelChange(this.value)">
+              <option value="qwen2.5:0.5b">Qwen2.5:0.5B (超轻量 450MB)</option>
+              <option value="qwen2.5:1.5b">Qwen2.5:1.5B (平衡型 980MB)</option>
+              <option value="qwen2.5:3b">Qwen2.5:3B (高智力 1.9GB)</option>
+              <option value="qwen2.5:7b">Qwen2.5:7B (满血 4.5GB)</option>
+            </select>
+            <svg class="win-combo-box-chevron" viewBox="0 0 10 10"><path d="M1 3l4 4 4-4"/></svg>
+          </div>
+
+          <div class="win-info-badge success">
+            <span class="pulse-dot"></span>
+            <span id="stat-heartbeat-state">5.0s 起搏器跳动中</span>
+          </div>
+
+          <button class="win-button accent" onclick="handleManualPulse()">
+            <svg viewBox="0 0 24 24"><path d="M17.65 6.35C16.2 4.9 14.21 4 12 4c-4.42 0-7.99 3.58-7.99 8s3.57 8 7.99 8c3.73 0 6.84-2.55 7.73-6h-2.08c-.82 2.33-3.04 4-5.65 4-3.31 0-6-2.69-6-6s2.69-6 6-6c1.66 0 3.14.69 4.22 1.78L13 11h7V4l-2.35 2.35z"/></svg>
+            <span>即时采样</span>
+          </button>
+          
+          <button class="win-button" onclick="handleQuietMode(300)">
+            <svg viewBox="0 0 24 24"><path d="M12 22c1.1 0 2-.9 2-2h-4c0 1.1.9 2 2 2zm6-6v-5c0-3.07-1.63-5.64-4.5-6.32V4c0-.83-.67-1.5-1.5-1.5s-1.5.67-1.5 1.5v.68C7.64 5.36 6 7.92 6 11v5l-2 2v1h16v-1l-2-2zm-2 1H8v-6c0-2.48 1.51-4.5 4-4.5s4 2.02 4 4.5v6z"/></svg>
+            <span>5分钟静默</span>
+          </button>
+        </div>
+      </header>
+
+      <!-- ================= 📌 第 1 页：中控仪表盘 (win-view-panel) ================= -->
+      <section id="view-dashboard" class="win-view-panel is-active">
+        
+        <!-- 模块 3: 神经中枢运行状况统计条 (win-vital-grid) -->
+        <div class="win-vital-grid">
+          <div class="win-vital-card">
+            <div class="win-vital-icon">
+              <svg viewBox="0 0 24 24"><path d="M11.99 2C6.47 2 2 6.48 2 12s4.47 10 9.99 10C17.52 22 22 17.52 22 12S17.52 2 11.99 2zM12 20c-4.42 0-8-3.58-8-8s3.58-8 8-8 8 3.58 8 8-3.58 8-8 8zm.5-13H11v6l5.25 3.15.75-1.23-4.5-2.67z"/></svg>
+            </div>
+            <div>
+              <div class="win-vital-label">神经中枢连续运转</div>
+              <div class="win-vital-value" id="vital-uptime">00:00:00</div>
+            </div>
+          </div>
+
+          <div class="win-vital-card">
+            <div class="win-vital-icon" style="color:var(--status-success-text);">
+              <svg viewBox="0 0 24 24"><path d="M12 21.35l-1.45-1.32C5.4 15.36 2 12.28 2 8.5 2 5.42 4.42 3 7.5 3c1.74 0 3.41.81 4.5 2.09C13.09 3.81 14.76 3 16.5 3 19.58 3 22 5.42 22 8.5c0 3.78-3.4 6.86-8.55 11.54L12 21.35z"/></svg>
+            </div>
+            <div>
+              <div class="win-vital-label">物理起搏心跳总数</div>
+              <div class="win-vital-value" id="vital-heartbeats">#0 次跳动</div>
+            </div>
+          </div>
+
+          <div class="win-vital-card">
+            <div class="win-vital-icon" style="color:#b388ff;">
+              <svg viewBox="0 0 24 24"><path d="M12 3c-4.97 0-9 4.03-9 9 0 2.12.74 4.07 1.97 5.61L4.35 19.4c-.39.39-.39 1.02 0 1.41.39.39 1.02.39 1.41 0l1.9-1.9C9.17 19.58 10.53 20 12 20c4.97 0 9-4.03 9-9s-4.03-9-9-9z"/></svg>
+            </div>
+            <div>
+              <div class="win-vital-label">端侧 GPU 显存体征</div>
+              <div class="win-vital-value" id="vital-gpu-load">RTX 4060 · 569 MB</div>
+            </div>
+          </div>
+
+          <div class="win-vital-card">
+            <div class="win-vital-icon" style="color:var(--status-warning-text);">
+              <svg viewBox="0 0 24 24"><path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm1 15h-2v-6h2v6zm0-8h-2V7h2v2z"/></svg>
+            </div>
+            <div>
+              <div class="win-vital-label">已启用感官末梢</div>
+              <div class="win-vital-value" id="vital-active-nerves">11/11 通道在线</div>
+            </div>
+          </div>
+        </div>
+
+        <!-- 模块 1: 当前 1 分钟世界感知 (win-control-example) -->
+        <div class="win-control-example">
+          <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:8px;">
+            <div style="display:flex;align-items:center;gap:8px;">
+              <div class="win-settings-card-icon" style="width:26px;height:26px;">
+                <svg viewBox="0 0 24 24"><path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm1 17.93c-3.95-.49-7-3.85-7-7.93 0-.62.08-1.21.21-1.79L9 15v1c0 1.1.9 2 2 2v1.93zm6.9-2.54c-.26-.81-1-1.39-1.9-1.39h-1v-3c0-.55-.45-1-1-1H8v-2h2c.55 0 1-.45 1-1V7h2c1.1 0 2-.9 2-2v-.41c2.93 1.19 5 4.06 5 7.41 0 2.08-.8 3.97-2.1 5.39z"/></svg>
+              </div>
+              <span style="font-size:13.5px;font-weight:600;">当前 1 分钟全景世界感知 (1-Minute World State Perception)</span>
+            </div>
+            <div style="display:flex;align-items:center;gap:6px;">
+              <span class="win-info-badge info" id="mcp-server-badge">🔌 MCP 链路就绪</span>
+              <span class="win-info-badge success" id="briefing-source-badge">🟢 真实 AI 神经网络推演 (Qwen2.5 @ RTX 4060)</span>
+              <span class="win-info-badge" id="briefing-time" style="background:rgba(255,255,255,0.06);color:var(--text-secondary);">00:00:00</span>
+            </div>
+          </div>
+
+          <!-- 全景感知深度长文 -->
+          <div class="win-perception-box" id="briefing-summary">
+            系统运行平稳，正在通过 5.0s 起搏器采集物理时钟与 11 大感官数据，端侧小脑神经网络正在进行毫秒级综合推演...
+          </div>
+
+          <!-- 模块 2: 当前的判断与介入裁决 (win-decision-grid) -->
+          <div class="win-decision-grid">
+            <div class="win-decision-card" style="border-left-color:var(--accent-base);">
+              <div class="win-decision-label">🎯 当前注意力焦点 (Focal Attention)</div>
+              <div class="win-decision-value" id="briefing-focus">正在对齐前台焦点...</div>
+            </div>
+
+            <div class="win-decision-card" style="border-left-color:#b388ff;">
+              <div class="win-decision-label">⚡ 高级大脑介入裁决 (Cortex Escalation)</div>
+              <div class="win-decision-value" id="briefing-escalation">稳态观察中 (无需打扰高级大脑)</div>
+            </div>
+
+            <div class="win-decision-card" style="border-left-color:var(--status-success-text);">
+              <div class="win-decision-label">💼 用户工作流推演 (User Activity Hypothesis)</div>
+              <div class="win-decision-value" id="briefing-activity">日常系统人机交互</div>
+            </div>
+          </div>
+        </div>
+
+        <!-- 模块 4: 神经中枢 AI 总结长文 (win-settings-card) -->
+        <div class="win-settings-card">
+          <div class="win-settings-card-surface" style="flex-direction:column;align-items:flex-start;padding:12px 14px;">
+            <div style="display:flex;align-items:center;gap:8px;margin-bottom:4px;">
+              <div class="win-settings-card-icon" style="width:24px;height:24px;">
+                <svg viewBox="0 0 24 24"><path d="M19 3H5c-1.1 0-2 .9-2 2v14c0 1.1.9 2 2 2h14c1.1 0 2-.9 2-2V5c0-1.1-.9-2-2-2zm-5 14H7v-2h7v2zm3-4H7v-2h10v2zm0-4H7V7h10v2z"/></svg>
+              </div>
+              <span class="win-settings-card-title">神经中枢 AI 认知总结与安全态势 (Executive Neural Summary)</span>
+            </div>
+            <div id="briefing-ai-summary" style="font-size:12.5px;color:var(--text-secondary);line-height:1.7;">
+              端侧中枢小脑推演完毕：当前物理计算机各生理脏器（CPU/内存/网络/外设）处于稳态健康区间；未捕获系统闪退或异常痛觉信号；运动神经元处于安全只读白名单守候态。
+            </div>
+          </div>
+        </div>
+
+        <!-- 模块 5: 当前已启用的神经末梢状态消息 (win-somatic-feed-grid) -->
+        <div>
+          <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:8px;">
+            <div style="display:flex;align-items:center;gap:8px;">
+              <span style="font-size:13.5px;font-weight:600;">已启用的神经末梢实时状态流水 (Active Somatic Live Feed)</span>
+              <span class="win-info-badge info" style="font-size:10.5px;">11 个感官通道</span>
+            </div>
+            <span style="font-size:11px;color:var(--text-tertiary);">每 5.0 秒物理时序刷新</span>
+          </div>
+
+          <div class="win-somatic-feed-grid" id="somatic-feed-container">
+            <!-- 动态渲染 11 大末梢的实时捕获消息卡片 -->
+          </div>
+        </div>
+
+      </section>
+
+      <!-- ================= 🧩 第 2 页：神经末梢插件商店 (win-view-panel) ================= -->
+      <section id="view-plugins" class="win-view-panel">
+        <div style="margin-bottom:6px;">
+          <div style="font-size:15px;font-weight:600;">神经末梢插件商店 (Receptor Plugin Store)</div>
+          <div style="font-size:12px;color:var(--text-secondary);margin-top:2px;">类似于 Chrome 扩展管理：支持热插拔启用/停用、安装与权限管理（本页面专注插件管理，不负责实时监测）</div>
+        </div>
+
+        <div style="font-size:13px;font-weight:600;margin:10px 0 6px 0;">已安装并挂载的神经末梢插件</div>
+        <div id="installed-plugins-list">
+          <!-- 动态渲染已安装列表 (含 WinToggleSwitch) -->
+        </div>
+
+        <div style="font-size:13px;font-weight:600;margin:16px 0 6px 0;">待挂载 / 扩展分脑插件市场</div>
+        <div id="available-plugins-list">
+          <!-- 动态渲染待安装扩展列表 -->
+        </div>
+      </section>
+
+      <!-- ================= 🧠 第 3 页：端侧模型中枢与监控 (win-view-panel) ================= -->
+      <section id="view-models" class="win-view-panel">
+        <div style="margin-bottom:6px;">
+          <div style="font-size:15px;font-weight:600;">端侧大模型神经中枢 (Local SLM & Ganglion Hub)</div>
+          <div style="font-size:12px;color:var(--text-secondary);margin-top:2px;">管理 Qwen2.5 @ RTX 4060 GPU 本地推演引擎与 I/O 日志流水</div>
+        </div>
+
+        <div class="win-control-example" style="margin-bottom:10px;">
+          <div style="font-size:13.5px;font-weight:600;margin-bottom:8px;">当前模型硬件体征与推理状态</div>
+          <div style="display:grid;grid-template-columns:repeat(auto-fit, minmax(200px, 1fr));gap:10px;">
+            <div>
+              <div style="font-size:11px;color:var(--text-tertiary);">当前活跃推理模型</div>
+              <div style="font-size:14px;font-weight:600;color:var(--accent-base);" id="model-active-name">Qwen2.5:0.5B</div>
+            </div>
+            <div>
+              <div style="font-size:11px;color:var(--text-tertiary);">RTX 4060 显存占用</div>
+              <div style="font-size:14px;font-weight:600;color:var(--text-primary);" id="model-vram-usage">569 MB / 8188 MB (100% GPU Offload)</div>
+            </div>
+            <div>
+              <div style="font-size:11px;color:var(--text-tertiary);">推理后端进程</div>
+              <div style="font-size:14px;font-weight:600;color:var(--status-success-text);">llama-server.exe (CUDA v12)</div>
+            </div>
+          </div>
+        </div>
+
+        <div class="win-control-example" style="margin-bottom:10px;">
+          <div style="font-size:13.5px;font-weight:600;margin-bottom:8px;">模型热切换与一键镜像拉取</div>
+          <div style="display:flex;gap:12px;flex-wrap:wrap;align-items:center;">
+            <div style="flex:1;min-width:240px;">
+              <label style="font-size:12px;color:var(--text-secondary);display:block;margin-bottom:4px;">中枢小脑推理模型：</label>
+              <div class="win-combo-box" style="width:100%;">
+                <select id="ganglion-model-select" style="width:100%;" onchange="handleModelChange(this.value)">
+                  <!-- 动态填入 -->
+                </select>
+                <svg class="win-combo-box-chevron" viewBox="0 0 10 10"><path d="M1 3l4 4 4-4"/></svg>
+              </div>
+            </div>
+            <div style="flex:1;min-width:240px;">
+              <label style="font-size:12px;color:var(--text-secondary);display:block;margin-bottom:4px;">从官方镜像拉取 (如 qwen2.5:3b)：</label>
+              <div style="display:flex;gap:8px;">
+                <input id="pull-model-input" type="text" placeholder="输入模型名称" style="flex:1;background:var(--ctrl-fill-rest);border:1px solid var(--ctrl-border-rest);color:#fff;padding:5px 8px;border-radius:4px;outline:none;">
+                <button class="win-button accent" onclick="handlePullModel()">拉取</button>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <div class="win-control-example">
+          <div style="font-size:13.5px;font-weight:600;margin-bottom:8px;">最近推演 Prompt 输入与输出记录 (Recent Inference I/O Logs)</div>
+          <div id="model-recent-io-container" style="background:#111;padding:10px;border-radius:4px;font-family:Consolas, monospace;font-size:11.5px;color:#60cdff;max-height:220px;overflow-y:auto;">
+            [00:00:00] [PROMPT_INPUT] 60s 感官时序数据 -> [MODEL_OUTPUT] 生成 4 维世界简报 (耗时 112ms)
+          </div>
+        </div>
+      </section>
+
+      <!-- ================= 🌐 第 4 页：上层大脑链接管理 (win-view-panel) ================= -->
+      <section id="view-cortex" class="win-view-panel">
+        <div style="margin-bottom:6px;">
+          <div style="font-size:15px;font-weight:600;">上层大脑链接管理 (Master Cortex Link Connector)</div>
+          <div style="font-size:12px;color:var(--text-secondary);margin-top:2px;">通过 Model Context Protocol (MCP) 与 Antigravity / Claude / DeepSeek 实时对接</div>
+        </div>
+
+        <div class="win-settings-card">
+          <div class="win-settings-card-surface">
+            <div class="win-settings-card-header">
+              <div class="win-settings-card-icon">
+                <svg viewBox="0 0 24 24"><path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm1 15h-2v-6h2v6zm0-8h-2V7h2v2z"/></svg>
+              </div>
+              <div class="win-settings-card-text">
+                <div class="win-settings-card-title">MCP 神经连接状态 (cyberspine-neural-link)</div>
+                <div class="win-settings-card-desc">协议版本: 2024-11-05 | 传输层: JSON-RPC 2.0 Stdio (双流隔离)</div>
+              </div>
+            </div>
+            <span class="win-info-badge success">在线就绪 (6 个工具挂载)</span>
+          </div>
+        </div>
+
+        <div class="win-control-example" style="margin-top:8px;">
+          <div style="font-size:13.5px;font-weight:600;margin-bottom:8px;">最近上层大脑交互日志与互通消息流</div>
+          <div id="cortex-messages-container" style="background:#111;padding:10px;border-radius:4px;font-family:Consolas, monospace;font-size:11.5px;color:#b388ff;max-height:260px;overflow-y:auto;">
+            [CORTEX_INIT] 上层大脑握手成功，6 大 MCP 工具已发布 (cyberspine_get_world_briefing 等)
+          </div>
+        </div>
+      </section>
+
+      <!-- ================= 🕸️ 第 5 页：循环神经走向路线图 (win-view-panel) ================= -->
+      <section id="view-topology" class="win-view-panel">
+        <div style="margin-bottom:6px;">
+          <div style="font-size:15px;font-weight:600;">完整循环神经走向路线图 (Dynamic Neural Loop Topology)</div>
+          <div style="font-size:12px;color:var(--text-secondary);margin-top:2px;">动态展示感官末梢 -> 时钟缓冲器 -> 端侧小脑 -> 安全门禁 -> 运动神经元的完整闭环</div>
+        </div>
+
+        <div class="win-control-example" style="display:flex;flex-direction:column;align-items:center;justify-content:center;min-height:360px;background:rgba(10,12,16,0.85);">
+          <!-- 动态拓扑路线图卡片 -->
+          <div style="display:flex;align-items:center;gap:16px;flex-wrap:wrap;justify-content:center;">
+            <div style="padding:12px 16px;border:1px solid var(--accent-base);border-radius:6px;background:rgba(96,205,255,0.08);text-align:center;">
+              <div style="font-size:13px;font-weight:600;color:var(--accent-base);">11 大物理感官末梢</div>
+              <div style="font-size:11px;color:var(--text-tertiary);margin-top:2px;">5.0s 硬件非侵入采样</div>
+            </div>
+            <div style="color:var(--text-tertiary);font-size:18px;">➔</div>
+            <div style="padding:12px 16px;border:1px solid #b388ff;border-radius:6px;background:rgba(179,136,255,0.08);text-align:center;">
+              <div style="font-size:13px;font-weight:600;color:#b388ff;">时钟缓冲器 (Buffer)</div>
+              <div style="font-size:11px;color:var(--text-tertiary);margin-top:2px;">1.0s 时空对齐窗口</div>
+            </div>
+            <div style="color:var(--text-tertiary);font-size:18px;">➔</div>
+            <div style="padding:12px 16px;border:1px solid var(--status-success-text);border-radius:6px;background:rgba(0,230,118,0.08);text-align:center;">
+              <div style="font-size:13px;font-weight:600;color:var(--status-success-text);">端侧小脑 (Qwen2.5)</div>
+              <div style="font-size:11px;color:var(--text-tertiary);margin-top:2px;">RTX 4060 CUDA 满血推演</div>
+            </div>
+            <div style="color:var(--text-tertiary);font-size:18px;">➔</div>
+            <div style="padding:12px 16px;border:1px solid #0078d4;border-radius:6px;background:rgba(0,120,212,0.08);text-align:center;">
+              <div style="font-size:13px;font-weight:600;color:#60cdff;">MCP 通路 / 运动门禁</div>
+              <div style="font-size:11px;color:var(--text-tertiary);margin-top:2px;">安全三定律与高级大脑</div>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      <!-- ================= 📜 第 6 页：核心神经中枢软件日志 (win-view-panel) ================= -->
+      <section id="view-logs" class="win-view-panel">
+        <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:6px;">
+          <div>
+            <div style="font-size:15px;font-weight:600;">核心神经中枢运行日志 (System Core Logs & Telemetry)</div>
+            <div style="font-size:12px;color:var(--text-secondary);margin-top:2px;">实时监控 [SOMATIC] -> [SPINAL] -> [MODEL] 的完整认知推演流</div>
+          </div>
+          <div style="display:flex;gap:8px;">
+            <button class="win-button" onclick="handleClearLogs()">清空日志</button>
+            <button class="win-button accent" onclick="handleTriggerCognitiveCycle()">触发全链路采样</button>
+          </div>
+        </div>
+
+        <div id="telemetry-log-container" style="background:#111;padding:12px;border-radius:4px;border:1px solid var(--stroke-divider);font-family:Consolas, monospace;font-size:12px;color:#60cdff;min-height:380px;overflow-y:auto;">
+          <!-- 实时日志流 -->
+        </div>
+      </section>
+
+      <!-- ================= 🔌 第 7 页：双向 MCP 互联中枢 (win-view-panel) ================= -->
+      <section id="view-mcp" class="win-view-panel">
+        <div style="margin-bottom:6px;">
+          <div style="font-size:15px;font-weight:600;">双向 MCP 协议互联中枢 (Bi-directional MCP Center)</div>
+          <div style="font-size:12px;color:var(--text-secondary);margin-top:2px;">一键复制 MCP 配置给顶层模型，或连接顶层模型作为 MCP 服务端</div>
+        </div>
+
+        <div class="win-control-example" style="margin-bottom:10px;">
+          <div style="font-size:13.5px;font-weight:600;margin-bottom:4px;">① 作为 MCP 服务端 (供 Antigravity / Claude / Cursor 连接)</div>
+          <div style="font-size:12px;color:var(--text-secondary);margin-bottom:8px;">将以下 JSON 配置添加到您的 MCP 客户端配置中，即可读取全身 11 大感官体征与世界简报：</div>
+          <pre id="mcp-config-snippet" style="background:#111;padding:10px;border-radius:4px;font-family:Consolas,monospace;font-size:12px;color:#60cdff;overflow-x:auto;">{
+  "mcpServers": {
+    "cyberspine-neural-link": {
+      "command": "python",
+      "args": ["src/mcp/server.py"]
+    }
+  }
+}</pre>
+          <button class="win-button accent" style="margin-top:8px;" onclick="handleCopyMCPConfig()">一键复制 MCP 配置</button>
+        </div>
+      </section>
+
+      <!-- ================= ⚙️ 第 8 页：系统全局设置 (win-view-panel) ================= -->
+      <section id="view-settings" class="win-view-panel">
+        <div style="margin-bottom:6px;">
+          <div style="font-size:15px;font-weight:600;">系统全局设置 (Global Settings)</div>
+          <div style="font-size:12px;color:var(--text-secondary);margin-top:2px;">管理深色模式、5.0s 起搏器周期、AIDA64 守护与日志归档</div>
+        </div>
+
+        <div class="win-settings-card">
+          <div class="win-settings-card-surface">
+            <div class="win-settings-card-header">
+              <div class="win-settings-card-icon">
+                <svg viewBox="0 0 24 24"><path d="M12 3c-4.97 0-9 4.03-9 9 0 2.12.74 4.07 1.97 5.61L4.35 19.4c-.39.39-.39 1.02 0 1.41.39.39 1.02.39 1.41 0l1.9-1.9C9.17 19.58 10.53 20 12 20c4.97 0 9-4.03 9-9s-4.03-9-9-9z"/></svg>
+              </div>
+              <div class="win-settings-card-text">
+                <div class="win-settings-card-title">Windows 11 Fluent 主题模式</div>
+                <div class="win-settings-card-desc">深色 Mica Alt 磨砂材质 (默认)</div>
+              </div>
+            </div>
+            <span class="win-info-badge info">深色模式</span>
+          </div>
+        </div>
+
+        <div class="win-settings-card">
+          <div class="win-settings-card-surface">
+            <div class="win-settings-card-header">
+              <div class="win-settings-card-icon">
+                <svg viewBox="0 0 24 24"><path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm-1 14H9v-2h2v2zm0-4H9V7h2v5zm4 4h-2v-2h2v2zm0-4h-2V7h2v5z"/></svg>
+              </div>
+              <div class="win-settings-card-text">
+                <div class="win-settings-card-title">AIDA64 硬件守护进程自动托管</div>
+                <div class="win-settings-card-desc">启动时自动扫描 vendor/aida64/ 并静默拉起</div>
+              </div>
+            </div>
+            <span class="win-info-badge info" id="aida64-status-badge">双模自适应中</span>
+          </div>
+        </div>
+      </section>
+
+    </main>
+  </div>
+
+  <script src="js/app.js"></script>
+</body>
+</html>

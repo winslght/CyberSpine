@@ -1,0 +1,12 @@
+{
+  "nerve_id": "nerve.example.mock_storage",
+  "name": "Mock Storage Sensory Nerve",
+  "version": "1.0.0",
+  "author": "CyberSpine Team",
+  "category": "TACTILE",
+  "description": "官方参考示例：用于演示 BNP v1.0 标准生命周期与外设存储状态脉冲发射的末梢插件",
+  "entrypoint": "main.py",
+  "transport": "STDIO",
+  "permissions": ["PERM_HARDWARE_IO"],
+  "poll_interval_ms": 1000
+}

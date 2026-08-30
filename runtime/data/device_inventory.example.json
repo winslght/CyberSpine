@@ -1,0 +1,23 @@
+{
+  "version": "1.0",
+  "comment": "CyberSpine 设备指纹与记忆库公开模板文件。生产运行时系统将自动在本地生成 device_inventory.json (受 .gitignore 保护，绝不上传云端)",
+  "devices": {
+    "a02973546892191c": {
+      "device_id": "a02973546892191c",
+      "device_class": "STORAGE_REMOVABLE",
+      "vendor_id": "04e8",
+      "product_id": "61f5",
+      "volume_label": "SAMSUNG_T7_SAMPLE",
+      "serial_number": "SN_SAMPLE_12345678",
+      "total_capacity_gb": 1000.0,
+      "free_capacity_gb": 480.0,
+      "mount_point": "E:\\",
+      "tags": [
+        "PYTHON_WORKSPACE",
+        "WORK_PROJECT_SSD"
+      ],
+      "first_seen": "2026-08-28T01:00:00.000000+00:00",
+      "last_seen": "2026-08-28T01:22:00.000000+00:00"
+    }
+  }
+}

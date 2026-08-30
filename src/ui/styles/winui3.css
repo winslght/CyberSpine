@@ -1,0 +1,815 @@
+/* ==========================================================================
+   CyberSpine WinUI 3 Fluent Design System (Directly Ported from WinUIonWeb)
+   Based on Microsoft Windows 11 Fluent Design 2 / WinUI 3 XAML Specifications
+   ========================================================================== */
+
+/* 1. Core Windows 11 Theme Tokens (Dark Mode Default) */
+:root {
+  /* Mica & Acrylic Surfaces */
+  --app-bg: #202020;
+  --layer-default: rgba(255, 255, 255, 0.05);
+  --layer-alt: rgba(255, 255, 255, 0.04);
+  --flyout-bg: rgba(44, 44, 44, 0.96);
+  --AcrylicInAppFillColorDefaultBrush: rgba(44, 44, 44, 0.92);
+
+  /* Card & Surfaces */
+  --card-bg: rgba(255, 255, 255, 0.05);
+  --card-bg-hover: rgba(255, 255, 255, 0.08);
+  --card-bg-secondary: rgba(255, 255, 255, 0.03);
+  --card-stroke: rgba(255, 255, 255, 0.08);
+  --card-stroke-top: rgba(255, 255, 255, 0.14);
+  --stroke-divider: rgba(255, 255, 255, 0.08);
+  --stroke-surface-flyout: rgba(255, 255, 255, 0.12);
+
+  /* Control Fills & Borders */
+  --ctrl-fill-rest: rgba(255, 255, 255, 0.06);
+  --ctrl-fill-hover: rgba(255, 255, 255, 0.09);
+  --ctrl-fill-active: rgba(255, 255, 255, 0.03);
+  --ctrl-fill-disabled: rgba(255, 255, 255, 0.02);
+  --ctrl-border-rest: rgba(255, 255, 255, 0.08);
+  --ctrl-border-accent: rgba(255, 255, 255, 0.16);
+
+  /* Windows 11 Accent Color (Fluent Blue & Cyan) */
+  --accent-base: #60CDFF;
+  --accent-hover: #70D4FF;
+  --accent-pressed: #50BEEF;
+  --accent-disabled: rgba(255, 255, 255, 0.16);
+  --accent-on-accent: #000000;
+  --accent-border: rgba(255, 255, 255, 0.08);
+
+  /* Semantic Alerts */
+  --status-success-bg: rgba(0, 230, 118, 0.12);
+  --status-success-text: #00e676;
+  --status-success-border: rgba(0, 230, 118, 0.25);
+  --status-info-bg: rgba(96, 205, 255, 0.12);
+  --status-info-text: #60cdff;
+  --status-info-border: rgba(96, 205, 255, 0.25);
+  --status-warning-bg: rgba(255, 185, 0, 0.15);
+  --status-warning-text: #ffb900;
+  --status-critical-bg: rgba(255, 153, 164, 0.15);
+  --status-critical-text: #ff99a4;
+
+  /* Typography */
+  --text-primary: rgba(255, 255, 255, 1);
+  --text-secondary: rgba(255, 255, 255, 0.78);
+  --text-tertiary: rgba(255, 255, 255, 0.54);
+  --text-disabled: rgba(255, 255, 255, 0.36);
+  --font-family: "Segoe UI Variable Text", "Segoe UI", -apple-system, BlinkMacSystemFont, "Microsoft YaHei", sans-serif;
+  --font-icon: "Segoe Fluent Icons", "Segoe MDL2 Assets", sans-serif;
+
+  /* ToggleSwitch Colors */
+  --toggle-border: rgba(255, 255, 255, 0.18);
+  --toggle-thumb: rgba(255, 255, 255, 0.78);
+  --toggle-thumb-hover: #ffffff;
+  --toggle-on-thumb: #000000;
+
+  /* Physics & Durations from WinUIonWeb */
+  --fast-duration: 150ms;
+  --normal-duration: 250ms;
+  --fast-out-slow-in: cubic-bezier(0, 0, 0, 1);
+  --elevation-shadow: 0 2px 4px rgba(0, 0, 0, 0.20), 0 0 1px rgba(255, 255, 255, 0.08);
+  --flyout-shadow: 0 8px 24px rgba(0, 0, 0, 0.38), 0 0 1px rgba(255, 255, 255, 0.14);
+}
+
+* {
+  box-sizing: border-box;
+  margin: 0;
+  padding: 0;
+  user-select: none;
+  -webkit-user-drag: none;
+}
+
+body {
+  font-family: var(--font-family);
+  background-color: var(--app-bg);
+  color: var(--text-primary);
+  height: 100vh;
+  width: 100vw;
+  overflow: hidden;
+  display: flex;
+  font-size: 14px;
+  line-height: 20px;
+  -webkit-font-smoothing: antialiased;
+}
+
+/* ================= 2. WinUI 3 Navigation View Shell (win-nav-shell) ================= */
+.win-nav-shell {
+  display: flex;
+  width: 100%;
+  height: 100%;
+  background: var(--app-bg);
+  overflow: hidden;
+}
+
+/* 左侧面板 */
+.win-nav-left-panel {
+  width: 250px;
+  min-width: 250px;
+  background: rgba(32, 32, 32, 0.85);
+  border-right: 1px solid var(--stroke-divider);
+  display: flex;
+  flex-direction: column;
+  padding: 8px 6px;
+  gap: 3px;
+  backdrop-filter: blur(30px) saturate(180%);
+  z-index: 10;
+  position: relative;
+  transition: width var(--normal-duration) var(--fast-out-slow-in), min-width var(--normal-duration) var(--fast-out-slow-in);
+}
+
+/* 紧凑收缩模式 (is-closed-compact) */
+.win-nav-left-panel.is-closed-compact {
+  width: 48px;
+  min-width: 48px;
+}
+
+.win-nav-left-panel.is-closed-compact .brand-text-block,
+.win-nav-left-panel.is-closed-compact .win-nav-item .label,
+.win-nav-left-panel.is-closed-compact .brand-subtitle {
+  opacity: 0;
+  display: none !important;
+}
+
+.win-nav-left-panel.is-closed-compact .win-nav-item {
+  width: 36px;
+  min-width: 36px;
+  padding: 0;
+  justify-content: center;
+  margin: 2px auto;
+}
+
+.win-nav-left-panel.is-closed-compact .brand-header {
+  padding: 4px 0 10px 0;
+  justify-content: center;
+}
+
+.win-nav-pane-command-row {
+  display: flex;
+  align-items: center;
+  padding: 2px 4px 8px 4px;
+  border-bottom: 1px solid var(--stroke-divider);
+  margin-bottom: 4px;
+}
+
+.brand-header {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  width: 100%;
+}
+
+.win-nav-hamburger {
+  width: 36px;
+  height: 36px;
+  min-width: 36px;
+  border-radius: 4px;
+  background: transparent;
+  border: none;
+  color: var(--text-primary);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  transition: background var(--fast-duration) var(--fast-out-slow-in);
+}
+
+.win-nav-hamburger:hover {
+  background: var(--card-bg-hover);
+}
+
+.win-nav-hamburger:active {
+  background: var(--card-bg-secondary);
+  transform: scale(0.96);
+}
+
+.win-nav-hamburger svg {
+  width: 16px;
+  height: 16px;
+  fill: currentColor;
+}
+
+.brand-logo-plate {
+  width: 26px;
+  height: 26px;
+  border-radius: 4px;
+  background: linear-gradient(135deg, #0078d4, #60cdff);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  box-shadow: 0 2px 6px rgba(0, 120, 212, 0.35);
+  flex-shrink: 0;
+}
+
+.brand-logo-plate svg {
+  width: 15px;
+  height: 15px;
+  fill: #000;
+}
+
+.brand-title {
+  font-size: 13.5px;
+  font-weight: 600;
+  color: var(--text-primary);
+  white-space: nowrap;
+}
+
+.brand-subtitle {
+  font-size: 11px;
+  color: var(--text-tertiary);
+  white-space: nowrap;
+}
+
+/* 导航项 */
+.win-nav-item {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  height: 36px;
+  min-height: 36px;
+  padding: 0 10px;
+  border-radius: 4px;
+  color: var(--text-secondary);
+  font-size: 13px;
+  cursor: pointer;
+  position: relative;
+  white-space: nowrap;
+  transition: background var(--fast-duration) var(--fast-out-slow-in), color var(--fast-duration) var(--fast-out-slow-in);
+}
+
+.win-nav-item:hover {
+  background: var(--card-bg-hover);
+  color: var(--text-primary);
+}
+
+.win-nav-item:active {
+  background: var(--card-bg-secondary);
+}
+
+.win-nav-item.is-selected {
+  background: var(--card-bg-hover);
+  color: var(--text-primary);
+  font-weight: 600;
+}
+
+.win-nav-item.is-selected::before {
+  content: "";
+  position: absolute;
+  left: 0;
+  top: 50%;
+  transform: translateY(-50%);
+  width: 3px;
+  height: 16px;
+  border-radius: 2px;
+  background: var(--accent-base);
+}
+
+.win-nav-item .icon {
+  width: 16px;
+  height: 16px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+}
+
+.win-nav-item .icon svg {
+  width: 16px;
+  height: 16px;
+  fill: currentColor;
+}
+
+.win-nav-spacer {
+  flex: 1;
+}
+
+.win-nav-footer-menu {
+  border-top: 1px solid var(--stroke-divider);
+  padding-top: 4px;
+}
+
+/* ================= 3. 右侧主内容区域 ================= */
+.win-nav-content-frame {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  height: 100%;
+  overflow: hidden;
+  background: #1c1c1c;
+}
+
+/* 顶栏 (WinTitleBar / ContentHeader) */
+.win-titlebar {
+  height: 48px;
+  min-height: 48px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 0 20px;
+  border-bottom: 1px solid var(--stroke-divider);
+  background: rgba(28, 28, 28, 0.75);
+  backdrop-filter: blur(20px);
+  z-index: 5;
+}
+
+.view-title {
+  font-size: 14.5px;
+  font-weight: 600;
+  color: var(--text-primary);
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.header-actions {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+/* ================= 4. WinUIonWeb 标准控件库 ================= */
+
+/* WinButton */
+.win-button {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  padding: 5px 12px;
+  font-family: var(--font-family);
+  font-size: 12.5px;
+  border-radius: 4px;
+  background: var(--ctrl-fill-rest);
+  color: var(--text-primary);
+  border: 1px solid var(--ctrl-border-rest);
+  border-top: 1px solid var(--card-stroke-top);
+  cursor: pointer;
+  box-shadow: var(--elevation-shadow);
+  transition: all var(--fast-duration) var(--fast-out-slow-in);
+  outline: none;
+}
+
+.win-button svg {
+  width: 14px;
+  height: 14px;
+  fill: currentColor;
+}
+
+.win-button:hover {
+  background: var(--ctrl-fill-hover);
+  border-color: var(--ctrl-border-accent);
+}
+
+.win-button:active {
+  background: var(--ctrl-fill-active);
+  transform: scale(0.985);
+}
+
+.win-button.accent {
+  background: var(--accent-base);
+  color: var(--accent-on-accent);
+  border: 1px solid var(--accent-border);
+  font-weight: 600;
+}
+
+.win-button.accent:hover {
+  background: var(--accent-hover);
+}
+
+.win-button.accent:active {
+  background: var(--accent-pressed);
+}
+
+/* WinComboBox */
+.win-combo-box {
+  position: relative;
+  display: inline-flex;
+  align-items: center;
+}
+
+.win-combo-box select {
+  appearance: none;
+  -webkit-appearance: none;
+  background: var(--ctrl-fill-rest);
+  border: 1px solid var(--ctrl-border-rest);
+  border-top: 1px solid var(--card-stroke-top);
+  border-radius: 4px;
+  color: var(--text-primary);
+  font-family: var(--font-family);
+  font-size: 12px;
+  padding: 5px 28px 5px 10px;
+  cursor: pointer;
+  outline: none;
+  box-shadow: var(--elevation-shadow);
+  transition: all var(--fast-duration) var(--fast-out-slow-in);
+}
+
+.win-combo-box select:hover {
+  background: var(--ctrl-fill-hover);
+  border-color: var(--ctrl-border-accent);
+}
+
+.win-combo-box select:focus {
+  border-bottom: 2px solid var(--accent-base);
+  background: var(--flyout-bg);
+}
+
+.win-combo-box select option {
+  background: #252525;
+  color: #ffffff;
+  padding: 6px;
+}
+
+.win-combo-box-chevron {
+  position: absolute;
+  right: 8px;
+  pointer-events: none;
+  width: 9px;
+  height: 9px;
+  fill: var(--text-secondary);
+}
+
+/* WinToggleSwitch (严格对齐 WinToggleSwitch.vue 源码) */
+.win-switch-wrap {
+  display: inline-flex;
+  align-items: center;
+  gap: 10px;
+  cursor: pointer;
+  user-select: none;
+}
+
+.win-switch {
+  position: relative;
+  display: inline-flex;
+  align-items: center;
+  width: 40px;
+  height: 20px;
+  border-radius: 10px;
+  cursor: pointer;
+  flex-shrink: 0;
+}
+
+.win-switch .track {
+  position: absolute;
+  inset: 0;
+  border-radius: 10px;
+  border: 1px solid var(--toggle-border);
+  background-color: var(--ctrl-fill-rest);
+  transition: all var(--fast-duration) var(--fast-out-slow-in);
+}
+
+.win-switch:hover .track {
+  border-color: var(--text-primary);
+  background-color: var(--ctrl-fill-hover);
+}
+
+.win-switch.is-on .track {
+  background-color: var(--accent-base);
+  border-color: transparent;
+}
+
+.win-switch.is-on:hover .track {
+  background-color: var(--accent-hover);
+}
+
+.win-switch .knob {
+  position: absolute;
+  top: 0;
+  left: 0;
+  width: 20px;
+  height: 20px;
+  transform: translateX(0px);
+  transition: transform var(--fast-duration) var(--fast-out-slow-in);
+}
+
+.win-switch.is-on .knob {
+  transform: translateX(20px);
+}
+
+.win-switch .thumb {
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  width: 12px;
+  height: 12px;
+  border-radius: 6px;
+  background-color: var(--toggle-thumb);
+  transform: translate(-50%, -50%);
+  transition: width var(--fast-duration) var(--fast-out-slow-in), height var(--fast-duration) var(--fast-out-slow-in), background-color var(--fast-duration);
+}
+
+.win-switch.is-on .thumb {
+  background-color: var(--toggle-on-thumb);
+}
+
+.win-switch:hover .thumb {
+  width: 14px;
+  height: 14px;
+  border-radius: 7px;
+  background-color: var(--toggle-thumb-hover);
+}
+
+.win-switch:hover.is-on .thumb {
+  background-color: var(--toggle-on-thumb);
+}
+
+/* WinSettingsCard (严格对齐 WinSettingsCard.vue 源码) */
+.win-settings-card {
+  display: block;
+  background: var(--card-bg);
+  border: 1px solid var(--card-stroke);
+  border-top: 1px solid var(--card-stroke-top);
+  border-radius: 4px;
+  margin-bottom: 4px;
+  transition: background var(--fast-duration) var(--fast-out-slow-in);
+}
+
+.win-settings-card:hover {
+  background: var(--card-bg-hover);
+}
+
+.win-settings-card-surface {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 12px 16px;
+  min-height: 48px;
+  gap: 12px;
+}
+
+.win-settings-card-header {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  flex: 1;
+}
+
+.win-settings-card-icon {
+  width: 32px;
+  height: 32px;
+  border-radius: 4px;
+  background: var(--card-bg-secondary);
+  border: 1px solid var(--card-stroke);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: var(--accent-base);
+  flex-shrink: 0;
+}
+
+.win-settings-card-icon svg {
+  width: 16px;
+  height: 16px;
+  fill: currentColor;
+}
+
+.win-settings-card-title {
+  font-size: 13.5px;
+  font-weight: 500;
+  color: var(--text-primary);
+  line-height: 18px;
+}
+
+.win-settings-card-desc {
+  font-size: 12px;
+  color: var(--text-secondary);
+  line-height: 16px;
+  margin-top: 2px;
+}
+
+/* WinInfoBadge */
+.win-info-badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 2px 8px;
+  border-radius: 9999px;
+  font-size: 11.5px;
+  font-weight: 500;
+  border: 1px solid transparent;
+}
+
+.win-info-badge.success {
+  background: var(--status-success-bg);
+  color: var(--status-success-text);
+  border-color: var(--status-success-border);
+}
+
+.win-info-badge.info {
+  background: var(--status-info-bg);
+  color: var(--status-info-text);
+  border-color: var(--status-info-border);
+}
+
+.win-info-badge.warning {
+  background: var(--status-warning-bg);
+  color: var(--status-warning-text);
+  border-color: var(--status-warning-bg);
+}
+
+.pulse-dot {
+  width: 6px;
+  height: 6px;
+  border-radius: 50%;
+  background: var(--status-success-text);
+  box-shadow: 0 0 6px var(--status-success-text);
+  animation: pulse-ring 2s infinite;
+}
+
+@keyframes pulse-ring {
+  0% { transform: scale(0.9); opacity: 0.8; }
+  50% { transform: scale(1.3); opacity: 1; filter: drop-shadow(0 0 6px var(--status-success-text)); }
+  100% { transform: scale(0.9); opacity: 0.8; }
+}
+
+/* ================= 5. 视图面板与 Page 1 模块布局 ================= */
+.win-view-panel {
+  flex: 1;
+  overflow-y: auto;
+  padding: 16px 20px;
+  display: none;
+  flex-direction: column;
+  gap: 14px;
+}
+
+.win-view-panel.is-active {
+  display: flex;
+}
+
+/* Page 1: 模块 3 运行状况体征条 */
+.win-vital-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
+  gap: 8px;
+}
+
+.win-vital-card {
+  background: var(--card-bg);
+  border: 1px solid var(--card-stroke);
+  border-top: 1px solid var(--card-stroke-top);
+  border-radius: 4px;
+  padding: 10px 12px;
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+.win-vital-icon {
+  width: 30px;
+  height: 30px;
+  border-radius: 4px;
+  background: var(--card-bg-secondary);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: var(--accent-base);
+  flex-shrink: 0;
+}
+
+.win-vital-icon svg {
+  width: 16px;
+  height: 16px;
+  fill: currentColor;
+}
+
+.win-vital-label {
+  font-size: 11px;
+  color: var(--text-tertiary);
+}
+
+.win-vital-value {
+  font-size: 14px;
+  font-weight: 600;
+  color: var(--text-primary);
+  margin-top: 1px;
+}
+
+/* Page 1: 模块 1 世界感知卡片 */
+.win-control-example {
+  background: var(--card-bg);
+  border: 1px solid var(--card-stroke);
+  border-top: 1px solid var(--card-stroke-top);
+  border-radius: 4px;
+  padding: 14px 16px;
+  box-shadow: var(--elevation-shadow);
+}
+
+.win-perception-box {
+  font-size: 13px;
+  line-height: 1.75;
+  color: var(--text-primary);
+  padding: 12px 14px;
+  background: rgba(0, 0, 0, 0.22);
+  border-radius: 4px;
+  border: 1px solid var(--stroke-divider);
+  margin: 10px 0;
+}
+
+/* Page 1: 模块 2 裁决三列卡 */
+.win-decision-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+  gap: 8px;
+}
+
+.win-decision-card {
+  background: var(--card-bg-secondary);
+  padding: 8px 12px;
+  border-radius: 4px;
+  border-left: 3px solid var(--accent-base);
+}
+
+.win-decision-label {
+  font-size: 11px;
+  color: var(--text-tertiary);
+  font-weight: 500;
+}
+
+.win-decision-value {
+  font-size: 12.5px;
+  font-weight: 500;
+  color: var(--text-primary);
+  margin-top: 2px;
+}
+
+/* Page 1: 模块 5 11 大感官实时消息流网格 */
+.win-somatic-feed-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(260px, 1fr));
+  gap: 8px;
+}
+
+.win-somatic-feed-card {
+  background: var(--card-bg);
+  border: 1px solid var(--card-stroke);
+  border-top: 1px solid var(--card-stroke-top);
+  border-radius: 4px;
+  padding: 10px 12px;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  transition: all var(--fast-duration) var(--fast-out-slow-in);
+}
+
+.win-somatic-feed-card:hover {
+  background: var(--card-bg-hover);
+  transform: translateY(-1px);
+}
+
+.win-somatic-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+}
+
+.win-somatic-title {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 12px;
+  font-weight: 600;
+  color: var(--text-primary);
+}
+
+.win-somatic-title svg {
+  width: 14px;
+  height: 14px;
+  fill: var(--accent-base);
+}
+
+.win-somatic-msg {
+  font-size: 12px;
+  color: var(--text-primary);
+  line-height: 1.45;
+  background: rgba(0, 0, 0, 0.18);
+  padding: 5px 8px;
+  border-radius: 3px;
+  border-left: 2px solid var(--accent-base);
+  word-break: break-all;
+}
+
+.win-somatic-meta {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  font-size: 10.5px;
+  color: var(--text-tertiary);
+}
+
+/* 滚动条规范 */
+::-webkit-scrollbar {
+  width: 6px;
+  height: 6px;
+}
+
+::-webkit-scrollbar-track {
+  background: transparent;
+}
+
+::-webkit-scrollbar-thumb {
+  background: rgba(255, 255, 255, 0.16);
+  border-radius: 3px;
+}
+
+::-webkit-scrollbar-thumb:hover {
+  background: rgba(255, 255, 255, 0.28);
+}

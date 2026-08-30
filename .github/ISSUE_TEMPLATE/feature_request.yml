@@ -1,0 +1,42 @@
+name: "💡 Feature Request & RFC / 特性提案"
+description: "提议新的神经末梢感官、调度算法或架构优化建议"
+labels: ["enhancement", "rfc"]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        欢迎为 CyberSpine 提出新特性！在提出前可先查阅 [docs/vision/PROJECT_PROPOSAL.md](../docs/vision/PROJECT_PROPOSAL.md) 与 [docs/tracking/ROADMAP.md](../docs/tracking/ROADMAP.md)。
+  - type: input
+    id: title
+    attributes:
+      label: "特性或提案名称"
+      placeholder: "例如: [RFC] 支持 Linux udev 触觉感知适配层"
+    validations:
+      required: true
+  - type: dropdown
+    id: category
+    attributes:
+      label: "所属领域分类"
+      options:
+        - "触觉与硬件 (Tactile / Hardware IO)"
+        - "视觉与屏幕焦点 (Vision / Workspace)"
+        - "内脏与系统状态 (Visceral / OS Metrics)"
+        - "听觉与语音 (Audition / VAD)"
+        - "调度与节律算法 (Pacing & Gating)"
+        - "BNP 协议与跨语言 SDK (BNP Core)"
+    validations:
+      required: true
+  - type: textarea
+    id: motivation
+    attributes:
+      label: "应用场景与业务价值 (Why)"
+      placeholder: "阐述为什么需要此功能，能解决哪类 AI 桌面伴侣或 Copilot 的痛点..."
+    validations:
+      required: true
+  - type: textarea
+    id: proposal
+    attributes:
+      label: "技术实现方案构想 (How)"
+      placeholder: "大致的架构设计、API 契约或协议规范构想..."
+    validations:
+      required: false

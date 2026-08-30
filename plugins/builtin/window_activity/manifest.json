@@ -1,0 +1,38 @@
+{
+  "plugin_id": "peripheral.window.activity",
+  "display_name": "窗口感知",
+  "version": "1.4.0",
+  "protocol_version": "1.0",
+  "entrypoint": "src.sensing.window_activity:WindowActivityPeripheral",
+  "platforms": ["windows"],
+  "capabilities": [
+    "window.current_state",
+    "window.catalog",
+    "window.focus_changed",
+    "window.high_interaction_changed",
+    "window.time_window_summary",
+    "window.foreground_availability_changed",
+    "window.geometry_changed"
+  ],
+  "signal_schemas": [
+    "window.current_state@3",
+    "window.catalog@1",
+    "window.focus_changed@2",
+    "window.high_interaction_changed@1",
+    "window.time_window_summary@1",
+    "window.foreground_availability_changed@1",
+    "window.geometry_changed@1"
+  ],
+  "permissions": ["window.metadata", "input.activity_without_content"],
+  "sensing_profile": {
+    "mode": "hybrid",
+    "catalog_refresh_seconds": 10,
+    "interaction_window_seconds": 300,
+    "focus_summary_window_seconds": 1800,
+    "input_capture": "diagnostic_opt_in_only"
+  },
+  "privacy": {
+    "classification": "metadata_only",
+    "never_collect": ["keystrokes", "typed_text", "clipboard", "mouse_coordinates", "screen_pixels", "window_title"]
+  }
+}

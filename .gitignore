@@ -1,0 +1,70 @@
+# Byte-compiled / optimized / DLL files
+__pycache__/
+*.py[cod]
+*$py.class
+*.so
+*.pyd
+
+# Caches and temporary data
+.pytest_cache/
+.coverage
+htmlcov/
+*.tmp
+*.temp
+.tmp/
+pytest-cache-files-*/
+
+# Virtual environments
+.venv/
+env/
+venv/
+ENV/
+env.bak/
+venv.bak/
+
+# Packaging and builds
+build/
+dist/
+*.egg-info/
+cyberspine.egg-info/
+wheels/
+*.egg
+
+# Editor and IDE configurations
+.obsidian/
+.vscode/
+.idea/
+*.swp
+*.swo
+*~
+
+# Runtime data, logs and caches
+runtime/logs/*.log
+runtime/logs/*.jsonl
+!runtime/logs/.gitkeep
+
+# Environment variables
+.env
+.env.local
+
+# OS generated files
+.DS_Store
+Thumbs.db
+desktop.ini
+
+# Runtime and persistent device data
+runtime/data/*.json
+!runtime/data/device_inventory.example.json
+
+# External reference packages & offline archives
+*.mhtml
+docs/reference/winui/
+
+# Vendor / External companion binaries (Portable AIDA64)
+vendor/aida64/*.exe
+vendor/aida64/*.dll
+vendor/aida64/*.dat
+vendor/aida64/*.sys
+!vendor/aida64/*.ini
+!vendor/aida64/*.template
+!vendor/aida64/README.md
