@@ -1,4 +1,9 @@
-"""在终端中观察窗口感知插件，并写入滚动 JSONL 日志。"""
+"""在终端中观察窗口感知插件，并写入滚动 JSONL 日志。
+
+本脚本是展示层和调度层，不重新实现窗口事实。它把四类时序协调起来：
+事件等待、前台宽限期重读、本地展示脉冲和低频完整校准；其中只有前三者
+按各自契约读取或不读取 Windows，日志只接收末梢已经脱敏的消息。
+"""
 import argparse
 import sys
 import time
@@ -16,10 +21,12 @@ from src.sensing.window_activity_log import WindowActivityLog
 
 
 def _timestamp() -> str:
+    """生成仅用于终端显示的本地时钟文本。"""
     return datetime.now().astimezone().strftime("%H:%M:%S.%f")[:-3]
 
 
 def _format_windows(summary: dict, limit: int = 4) -> str:
+    """把时间窗窗口汇总压缩为有限宽度的终端文本。"""
     windows = summary.get("windows", [])[:limit]
     if not windows:
         return "暂无可归因窗口"
@@ -28,6 +35,7 @@ def _format_windows(summary: dict, limit: int = 4) -> str:
 
 
 def _format_segments(summary: dict, limit: int = 4) -> str:
+    """把最近焦点片段格式化为不含标题的链路摘要。"""
     segments = summary.get("segments", [])[-limit:]
     if not segments:
         return "暂无完整焦点片段"
@@ -36,16 +44,19 @@ def _format_segments(summary: dict, limit: int = 4) -> str:
 
 
 def _format_presented_windows(catalog: dict) -> str:
+    """只展示被末梢标记为用户呈现的应用名。"""
     windows = [item["application"] for item in catalog["windows"]
                if item["presentation"]["is_user_presented"]]
     return "、".join(windows) if windows else "无"
 
 
 def _display_width(text: str) -> int:
+    """按东亚宽字符规则计算终端显示宽度。"""
     return sum(2 if unicodedata.east_asian_width(char) in {"W", "F"} else 1 for char in text)
 
 
 def _fit(text: str, width: int) -> str:
+    """将文本截断或填充到固定显示宽度，避免仪表盘边框错位。"""
     visible, used = [], 0
     for char in text:
         char_width = _display_width(char)
@@ -57,24 +68,29 @@ def _fit(text: str, width: int) -> str:
 
 
 def _box_line(text: str = "", width: int = 72) -> str:
+    """生成仪表盘内容行。"""
     return f"║ {_fit(text, width - 4)} ║"
 
 
 def _box_header(text: str, width: int = 72) -> str:
+    """生成仪表盘顶部边框行。"""
     return f"╔═{_fit(text, width - 4)}═╗"
 
 
 def _box_footer(width: int = 72) -> str:
+    """生成仪表盘底部边框行。"""
     return f"╚{'═' * (width - 2)}╝"
 
 
 def _box_divider(title: str, width: int = 72) -> str:
+    """生成带中文区块标题的分隔行。"""
     label = f" {title} "
     remaining = max(0, width - 2 - _display_width(label))
     return f"╠{'═' * (remaining // 2)}{label}{'═' * (remaining - remaining // 2)}╣"
 
 
 def _event_lines(messages) -> list[str]:
+    """将脱敏神经消息转换为最近变化列表，不追加原始窗口内容。"""
     lines = []
     for message in messages:
         timestamp = message.timestamp.astimezone().strftime("%H:%M:%S")
@@ -101,6 +117,7 @@ def _event_lines(messages) -> list[str]:
 
 def _render_dashboard(messages, peripheral: WindowActivityPeripheral, recent_events: list[str],
                       sample_interval: float, display_interval: float, display_origin: str) -> str:
+    """把末梢状态、目录、时间窗和历史事件映射到终端仪表盘。"""
     state = next(message for message in messages if message.topic == "window.current_state")
     catalog = next(message for message in messages if message.topic == "window.catalog")
     summary = next(message for message in messages if message.topic == "window.time_window_summary")
@@ -156,6 +173,7 @@ def _render_dashboard(messages, peripheral: WindowActivityPeripheral, recent_eve
 
 
 def _draw_dashboard(rendered: str, clear_screen: bool) -> None:
+    """按终端能力选择清屏重绘或连续追加输出。"""
     if clear_screen:
         print("\033[2J\033[H", end="")
     print(rendered, flush=True)
@@ -167,6 +185,7 @@ def _deadline_reached(deadline: float | None) -> bool:
 
 
 def _argument_parser() -> argparse.ArgumentParser:
+    """声明观察器参数；脚本直接运行默认不启用全局输入钩子。"""
     parser = argparse.ArgumentParser(description="观察 CyberSpine 窗口感知插件")
     parser.add_argument("--duration", type=float, default=0, help="运行秒数；0 表示持续运行至 Ctrl+C")
     parser.add_argument("--interval", type=float, default=60, help="窗口目录低频校准间隔（秒）")
@@ -185,6 +204,7 @@ def _argument_parser() -> argparse.ArgumentParser:
 
 
 def main() -> int:
+    """协调事件等待、宽限重读、本地展示脉冲和60秒兜底校准。"""
     if hasattr(sys.stdout, "reconfigure"):
         sys.stdout.reconfigure(encoding="utf-8")
     parser = _argument_parser()

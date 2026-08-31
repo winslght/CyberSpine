@@ -1,4 +1,8 @@
-"""汇总窗口感知 JSONL 日志。"""
+"""离线汇总窗口感知 JSONL 日志。
+
+脚本只读取已经落盘的元数据消息，交给分析模块计算焦点片段、交互汇总和
+时间守恒指标；它不连接 Windows、不启动事件钩子，也不读取窗口内容。
+"""
 import argparse
 import json
 import sys
@@ -12,6 +16,7 @@ from src.sensing.window_activity_log import analyze_window_activity_log
 
 
 def main() -> int:
+    """解析日志路径并以 UTF-8 JSON 输出脱敏分析结果。"""
     if hasattr(sys.stdout, "reconfigure"):
         sys.stdout.reconfigure(encoding="utf-8")
     parser = argparse.ArgumentParser(description="分析 CyberSpine 窗口感知日志")

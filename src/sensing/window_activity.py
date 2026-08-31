@@ -1,4 +1,10 @@
-"""窗口感知末梢神经：窗口目录、前台驻留、交互强度与时间窗事实整合。"""
+"""窗口感知末梢的事实整合层。
+
+本模块只输出可由 Windows 窗口元数据和本地时间证明的事实，不推断用户意图。
+正常路径由 WinEvent 冲动驱动，60 秒完整目录校准负责弥补漏事件；5 秒左右的
+展示脉冲只推进本地时间视图，不重新读取操作系统。所有消息都保持元数据级，
+不携带窗口标题、输入文本、剪贴板、鼠标坐标或屏幕图像。
+"""
 from collections import deque
 from collections.abc import Callable, Mapping
 import json
@@ -17,7 +23,13 @@ ScreenBoundsProvider = Callable[[], Optional[Mapping[str, Any]]]
 
 
 class WindowActivityPeripheral:
-    """产生窗口层面的事实，不在插件中推断用户的具体工作。"""
+    """产生窗口层事实并维护有限历史，不在插件中推断用户的具体工作。
+
+    前台解析有三个实际运行时状态：``available``、
+    ``temporarily_unresolved`` 和 ``unresolved``；``unavailable`` 是为锁屏或
+    安全桌面等明确证据保留的协议状态。系统事件只提供“何时需要重新读取”的
+    提示，真正的窗口事实仍由本类在调用线程中读取和整合。
+    """
 
     source = "peripheral.window.activity"
     state_topic = "window.current_state"
@@ -41,6 +53,12 @@ class WindowActivityPeripheral:
                  minimum_interactions: int = 6, event_source: Any = None,
                  event_debounce_seconds: float = 0.2, foreground_grace_seconds: float = 1.0,
                  event_diagnostics_enabled: bool = False):
+        """建立窗口事实源、有限时间窗和事件合并器。
+
+        ``catalog_provider``/``snapshot_provider`` 是测试与兼容入口；没有外部
+        提供者时才绑定 Windows 原生目录。这样既能保持生产路径的单一事实源，
+        也能让状态机在不接触真实桌面的情况下回归测试。
+        """
         if activity_window_seconds <= 0 or focus_window_seconds <= 0 or foreground_grace_seconds <= 0:
             raise ValueError("activity_window_seconds, focus_window_seconds, and foreground_grace_seconds must be positive")
         self._clock = clock
@@ -103,6 +121,7 @@ class WindowActivityPeripheral:
         return event_started or input_started
 
     def stop_input_monitor(self) -> None:
+        """停止可选的全局输入钩子，并清除拖拽候选的按住状态。"""
         if self._input_monitor:
             self._input_monitor.stop()
         self._mouse_button_held = False
@@ -114,22 +133,27 @@ class WindowActivityPeripheral:
 
     @property
     def input_monitor_running(self) -> bool:
+        """返回输入钩子是否实际安装并运行，而不是是否曾被请求启动。"""
         return bool(self._input_monitor and self._input_monitor.is_running)
 
     @property
     def input_monitor_error_count(self) -> int:
+        """返回脱敏的输入回调错误计数，不暴露底层异常文本。"""
         return self._input_monitor.callback_error_count if self._input_monitor else 0
 
     @property
     def event_source_running(self) -> bool:
+        """返回 WinEvent 线程是否仍存活。"""
         return bool(self._event_source.is_running)
 
     @property
     def event_source_error_count(self) -> int:
+        """返回事件回调错误数量，供状态诊断使用。"""
         return int(self._event_source.callback_error_count)
 
     @property
     def inventory_read_error_count(self) -> int:
+        """返回窗口目录读取失败次数；错误详情不进入消息。"""
         return int(getattr(self._inventory, "read_error_count", 0))
 
     def collect_event_messages(self) -> list[NeuralMessage]:
@@ -204,6 +228,7 @@ class WindowActivityPeripheral:
         return max(0.0, self._foreground_grace_seconds - (self._clock() - self._foreground_unresolved_since))
 
     def record_interaction(self, window_id: str, at: Optional[float] = None) -> None:
+        """记录一次不含键值或坐标的交互时间点，并归因给窗口 ID。"""
         self._tracker.record(window_id, at)
 
     def record_mouse_button_state(self, held: bool) -> None:
@@ -211,6 +236,7 @@ class WindowActivityPeripheral:
         self._mouse_button_held = bool(held)
 
     def current_state(self) -> NeuralMessage:
+        """读取一次完整当前状态；事件驱动主循环通常使用 ``collect_messages``。"""
         catalog, foreground = self._observed_catalog()
         return self._state_message(foreground, self._decorate_catalog(catalog, foreground))
 
@@ -243,7 +269,11 @@ class WindowActivityPeripheral:
 
     @staticmethod
     def _fact_signature(catalog: list[dict[str, Any]], foreground_status: str) -> str:
-        """比较用户窗口事实，排除本地派生字段与瞬态系统表面噪声。"""
+        """比较用户窗口事实，排除本地派生字段与瞬态系统表面噪声。
+
+        驻留秒数、交互统计和几何活动会随展示脉冲变化，不能单独构成新的
+        神经事实；输入法系统表面也不能因为候选框尺寸变化触发状态重发。
+        """
         volatile_fields = {"focus_dwell_seconds", "interaction", "geometry_activity"}
         windows = [{key: value for key, value in item.items() if key not in volatile_fields}
                    for item in sorted(catalog, key=lambda item: item["window_id"])
@@ -259,7 +289,12 @@ class WindowActivityPeripheral:
                 "window_identifiers_included": False}
 
     def _resolve_foreground(self, raw_foreground: Optional[dict[str, Any]], now: float) -> tuple[Optional[dict[str, Any]], str]:
-        """将一次空前台读取先标为未解析，避免把系统短暂过渡伪装成注意力中断。"""
+        """将一次空前台读取先标为未解析，避免伪造注意力中断。
+
+        首次缺失且没有基线时直接是 ``unresolved``；已有基线时先进入
+        ``temporarily_unresolved``，在 1 秒宽限内保留最后确认窗口。宽限到期
+        只允许一次真正的前台重读，仍为空才进入 ``unresolved``。
+        """
         self._raw_foreground_missing = raw_foreground is None
         if raw_foreground is not None:
             self._last_confirmed_foreground = dict(raw_foreground)
@@ -282,15 +317,26 @@ class WindowActivityPeripheral:
         return None, self._foreground_resolution
 
     def _local_foreground(self, now: float) -> tuple[Optional[dict[str, Any]], str]:
+        """返回最近一次已知前台，禁止展示脉冲推进状态机。
+
+        ``now`` 只服务于接口对称性和调用方时序；本地脉冲不能把宽限期自动
+        推进到 ``unresolved``，否则一个 UI 刷新就会伪造系统前台变化。
+        """
         # 展示脉冲不读取操作系统，也不得把“待确认”自行推进为未解析；
         # 状态转换只由一次性前台重读完成。
         return self._last_observed_foreground, self._foreground_resolution
 
     def poll_focus_change(self) -> Optional[NeuralMessage]:
+        """兼容旧调用方的单次焦点事件查询，不改变事件驱动主路径。"""
         _catalog, foreground = self._observed_catalog()
         return self._focus_event(foreground)
 
     def _observed_catalog(self, event_tickets: Optional[list[WindowEventTicket]] = None) -> tuple[list[dict[str, Any]], Optional[dict[str, Any]]]:
+        """选择增量事件目录或完整目录，并标记本次前台事实是否新鲜。
+
+        只有带有效窗口句柄且不是桌面切换的事件批次才走增量路径；桌面切换
+        必须重新枚举，因为单窗口读取无法提供全局 Z 序和窗口增删事实。
+        """
         if event_tickets and self._inventory is not None and self._catalog_cache and \
                 all(ticket.hwnd and ticket.kind != "desktop_switched" for ticket in event_tickets):
             return self._event_catalog(event_tickets)
@@ -303,7 +349,12 @@ class WindowActivityPeripheral:
         return catalog, foreground
 
     def _event_catalog(self, tickets: list[WindowEventTicket]) -> tuple[list[dict[str, Any]], Optional[dict[str, Any]]]:
-        """只更新事件影响的句柄与当前前台；完整枚举留给低频校准。"""
+        """只更新事件影响的句柄与当前前台；完整枚举留给低频校准。
+
+        ``preserved_foreground_id`` 是一致性护栏：后台位置、隐藏或最小化事件
+        不得因为一次瞬时空读取抹掉已确认前台。事件句柄只足以定位目标窗口，
+        不足以推断新的全局 Z 序，因此未受影响窗口保留目录基线。
+        """
         assert self._inventory is not None
         affected_ids = {f"win:{ticket.hwnd:x}" for ticket in tickets if ticket.hwnd}
         preserved_foreground_id = next((window_id for window_id, item in self._catalog_cache.items()
@@ -380,6 +431,11 @@ class WindowActivityPeripheral:
 
     def _decorate_catalog(self, catalog: list[dict[str, Any]], foreground: Optional[dict[str, Any]],
                           now: Optional[float] = None) -> list[dict[str, Any]]:
+        """把原始目录装饰成公开窗口事实，并维护几何与交互派生状态。
+
+        系统表面会参与内部基线更新，却在神经事件层被降噪；这保证后续恢复
+        时仍能比较真实边界，同时不会把输入法候选框当成用户窗口移动。
+        """
         now = self._clock() if now is None else now
         if foreground is None:
             self._observe_unattributed(now)
@@ -416,7 +472,11 @@ class WindowActivityPeripheral:
     @classmethod
     def _is_synchronized_shell_surface(cls, window: Mapping[str, Any],
                                        system_bounds: list[Mapping[str, int]]) -> bool:
-        """识别与输入法浮窗同边同步的无标题 Shell 伴生表面。"""
+        """识别与输入法浮窗同边同步的无标题 Shell 伴生表面。
+
+        只匹配非前台、无标题的 ``explorer.exe``，并要求左右边界近似相同且
+        垂直区间重叠；普通有标题资源管理器不会被归入系统表面。
+        """
         if (str(window["application"]).lower() not in cls._SHELL_SURFACE_APPLICATIONS
                 or window.get("has_title", False) or window.get("is_foreground", False)):
             return False
@@ -447,7 +507,12 @@ class WindowActivityPeripheral:
 
     def _observe_geometry(self, window: Mapping[str, Any], now: float,
                           emit_event: bool = True) -> dict[str, Any]:
-        """依据连续目录快照记录边界变化；拖拽/调整大小只在鼠标按住时作为候选。"""
+        """依据连续目录快照记录边界变化，并可选择是否投递几何事件。
+
+        无论 ``emit_event`` 是否为真，当前边界都会写入 ``_last_geometry``；
+        因而被过滤的输入法窗口不会污染下一次真实窗口变化的比较基线。鼠标
+        按住只提供“可能正在拖拽”的弱证据，不代表一定发生了用户拖动。
+        """
         window_id = str(window["window_id"])
         current_bounds = dict(window["bounds"])
         current_display = (window.get("window_state") or {}).get("display") or window.get("display")
@@ -481,6 +546,7 @@ class WindowActivityPeripheral:
         return str(display.get("id")) if isinstance(display, Mapping) and display.get("id") else None
 
     def _screen_bounds(self) -> Optional[dict[str, int]]:
+        """读取并校验虚拟桌面边界；失败时降级为未知显示器几何。"""
         try:
             raw = self._screen_bounds_provider()
         except Exception:
@@ -515,6 +581,7 @@ class WindowActivityPeripheral:
 
     @staticmethod
     def _rectangles_intersect(first: Mapping[str, int], second: Mapping[str, int]) -> bool:
+        """用半开矩形区间判断相交，兼容负坐标多显示器布局。"""
         return (first["left"] < second["left"] + second["width"] and
                 first["left"] + first["width"] > second["left"] and
                 first["top"] < second["top"] + second["height"] and
@@ -556,6 +623,7 @@ class WindowActivityPeripheral:
         self._prune_focus_history(now)
 
     def _prune_focus_history(self, now: float) -> None:
+        """按观察窗淘汰已结束焦点片段和未归因区间，保留活动尾段。"""
         cutoff = now - self._focus_window_seconds
         while len(self._focus_segments) > 1 and self._focus_segments[0].get("ended_at") is not None \
                 and self._focus_segments[0]["ended_at"] <= cutoff:
@@ -567,6 +635,7 @@ class WindowActivityPeripheral:
     def _state_message(self, foreground: Optional[dict[str, Any]], catalog: list[dict[str, Any]],
                        foreground_status: str = "available",
                        event_diagnostics: Optional[dict[str, Any]] = None) -> NeuralMessage:
+        """生成当前状态消息；前台状态和诊断字段均保持元数据级。"""
         current = next((window for window in catalog if window["is_foreground"]), None)
         payload = {"foreground": current, "window_count": len(catalog),
             "foreground_status": foreground_status,
@@ -586,6 +655,7 @@ class WindowActivityPeripheral:
             privacy=PrivacyClass.METADATA_ONLY, ttl_seconds=120, collapse_key=self.state_topic)
 
     def _catalog_message(self, catalog: list[dict[str, Any]]) -> NeuralMessage:
+        """生成完整窗口目录消息，并区分屏幕呈现与用户呈现计数。"""
         screen_present = [item for item in catalog if item["presentation"]["is_screen_present"]]
         user_presented = [item for item in catalog if item["presentation"]["is_user_presented"]]
         return NeuralMessage(kind=MessageKind.STATE, source=self.source, topic=self.catalog_topic,
@@ -597,7 +667,12 @@ class WindowActivityPeripheral:
 
     def _time_window_message(self, catalog: list[dict[str, Any]], now: float,
                              foreground_status: str = "available") -> NeuralMessage:
-        """输出窗口末梢本地整合出的时间窗事实；不包含意图解释或原始标题。"""
+        """输出本插件观察窗内的时间分区事实，不包含意图解释或原始标题。
+
+        焦点片段与未归因区间互斥，最终强制满足
+        ``focus_total + unattributed == elapsed``，再计算比例，避免任何窗口
+        因恢复逻辑或边界截断而获得超过 100% 的占比。
+        """
         self._prune_focus_history(now)
         cutoff = now - self._focus_window_seconds
         totals: dict[str, dict[str, Any]] = {}
@@ -649,6 +724,7 @@ class WindowActivityPeripheral:
             }, privacy=PrivacyClass.METADATA_ONLY, ttl_seconds=120, collapse_key=self.time_window_topic)
 
     def _availability_event(self, current: Optional[dict[str, Any]], foreground_status: str) -> Optional[NeuralMessage]:
+        """仅在可归因能力边界变化时投递事件，不把 unresolved 伪装成锁屏。"""
         # `unresolved` 仅表示当前无法取得可靠前台事实，不能被伪装成用户
         # 进入锁屏/安全桌面等真正的不可归因状态。
         available = foreground_status in {"available", "temporarily_unresolved", "unresolved"}
@@ -670,6 +746,7 @@ class WindowActivityPeripheral:
         return round(max(0.0, self._clock() - self._foreground_unresolved_since), 3)
 
     def _focus_event(self, current: Optional[dict[str, Any]]) -> Optional[NeuralMessage]:
+        """比较已公开的前台窗口身份，生成去标题的焦点切换事件。"""
         if current is None:
             return None
         current = self._public_window(current)
@@ -682,6 +759,7 @@ class WindowActivityPeripheral:
             privacy=PrivacyClass.METADATA_ONLY, ttl_seconds=300, collapse_key=self.event_topic)
 
     def _activity_event(self, catalog: list[dict[str, Any]]) -> Optional[NeuralMessage]:
+        """只在高频交互窗口集合变化时投递一次聚合事件。"""
         current_ids = {window["window_id"] for window in catalog if window["interaction"]["is_high_frequency"]}
         if current_ids == self._previous_high_interaction_ids:
             return None
@@ -693,6 +771,7 @@ class WindowActivityPeripheral:
             privacy=PrivacyClass.METADATA_ONLY, ttl_seconds=300, collapse_key=self.activity_topic)
 
     def _geometry_event(self) -> Optional[NeuralMessage]:
+        """把本次目录采样中未被降噪的几何变化打包成一条事件。"""
         if not self._pending_geometry_changes:
             return None
         return NeuralMessage(kind=MessageKind.EVENT, source=self.source, topic=self.geometry_topic,
@@ -700,6 +779,7 @@ class WindowActivityPeripheral:
             privacy=PrivacyClass.METADATA_ONLY, ttl_seconds=300)
 
     def _record_hwnd_interaction(self, hwnd: int) -> None:
+        """将输入钩子提供的 HWND 转为内部窗口 ID；不保存原始输入。"""
         self.record_interaction(f"win:{hwnd:x}")
 
     @staticmethod
@@ -718,6 +798,7 @@ class WindowActivityPeripheral:
 
     @staticmethod
     def _normalize_window(raw: Mapping[str, Any], z_order: int, fallback_foreground: bool = False) -> dict[str, Any]:
+        """把原生目录或兼容快照规范化为统一窗口事实结构。"""
         hwnd = int(raw.get("hwnd") or 0)
         pid = raw.get("pid") or raw.get("active_pid")
         window_id = raw.get("window_id") or (f"win:{hwnd:x}" if hwnd else f"legacy:{pid or 0}:{z_order}")

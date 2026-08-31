@@ -1,4 +1,8 @@
-"""按前台窗口归因的键盘/鼠标活动统计；绝不记录输入内容或坐标。"""
+"""按前台窗口归因的脱敏键盘/鼠标活动统计。
+
+输入钩子只保留事件发生的时间点和当时的前台 HWND，绝不读取键值、输入文本、
+鼠标坐标或剪贴板。底层回调必须保持轻量，窗口目录与高频判定由上层完成。
+"""
 from collections import defaultdict, deque
 from collections.abc import Callable
 import ctypes
@@ -14,6 +18,7 @@ class _POINT(ctypes.Structure):
 
 
 class _MSLLHOOKSTRUCT(ctypes.Structure):
+    """Windows ``WH_MOUSE_LL`` 回调传入的固定内存布局，不向上层暴露坐标。"""
     _fields_ = [("pt", _POINT), ("mouseData", wintypes.DWORD), ("flags", wintypes.DWORD),
                 ("time", wintypes.DWORD), ("dwExtraInfo", ctypes.c_size_t)]
 
@@ -25,7 +30,11 @@ def _handle_value(handle) -> int:
 
 
 class WindowInteractionTracker:
-    """保存有限时窗内的交互时间点，供窗口感知插件生成聚合统计。"""
+    """保存有限时窗内的交互时间点，生成窗口级聚合统计。
+
+    事件超过观察窗会在查询时淘汰；因此内存增长受活跃窗口和时间窗约束，
+    上层只看到次数、频率和最后一次单调时钟时间，不会看到输入内容。
+    """
 
     def __init__(self, clock: Callable[[], float] = time.monotonic):
         self._clock = clock
@@ -33,6 +42,7 @@ class WindowInteractionTracker:
         self._lock = threading.RLock()
 
     def record(self, window_id: str, at: Optional[float] = None) -> None:
+        """追加一个窗口级时间点；空窗口 ID 被安全忽略。"""
         if not window_id:
             return
         with self._lock:
@@ -40,6 +50,7 @@ class WindowInteractionTracker:
 
     def summary(self, window_id: str, period_seconds: float, high_frequency_per_minute: float,
                 minimum_events: int, now: Optional[float] = None) -> dict:
+        """按滑动时间窗计算频率，并用次数与每分钟阈值共同判定高频。"""
         now = self._clock() if now is None else now
         cutoff = now - period_seconds
         with self._lock:
@@ -55,7 +66,12 @@ class WindowInteractionTracker:
 
 
 class WindowsGlobalInputMonitor:
-    """低级键盘/鼠标钩子，将按键按下、鼠标点击和滚轮归因至当前前台窗口。"""
+    """在独立线程运行低级键盘/鼠标钩子并归因至当前前台窗口。
+
+    回调只做 HWND 解包、时间点转发和按键集合维护；系统消息循环负责保持
+    钩子存活，``WM_QUIT`` 负责退出。X1/X2 通过 ``mouseData`` 独立跟踪，
+    滚轮是交互事件但不是“按住”状态。
+    """
 
     _WH_KEYBOARD_LL, _WH_MOUSE_LL = 13, 14
     _WM_KEYDOWN, _WM_SYSKEYDOWN = 0x0100, 0x0104
@@ -95,6 +111,7 @@ class WindowsGlobalInputMonitor:
 
     @staticmethod
     def _configure_win32(user32, kernel32, callback_type) -> None:
+        """显式绑定指针大小相关的 Win32 ``argtypes``/``restype``。"""
         user32.GetForegroundWindow.argtypes = []
         user32.GetForegroundWindow.restype = wintypes.HWND
         user32.SetWindowsHookExW.argtypes = [ctypes.c_int, callback_type, wintypes.HINSTANCE,
@@ -113,6 +130,7 @@ class WindowsGlobalInputMonitor:
 
     @staticmethod
     def _x_button_identity(l_param: int) -> Optional[str]:
+        """从 ``MSLLHOOKSTRUCT.mouseData`` 高 16 位解出 XBUTTON1/2。"""
         if not l_param:
             return None
         mouse_data = ctypes.cast(l_param, ctypes.POINTER(_MSLLHOOKSTRUCT)).contents.mouseData
@@ -120,6 +138,7 @@ class WindowsGlobalInputMonitor:
         return f"x{button}" if button in {1, 2} else None
 
     def _update_mouse_button_state(self, action: int, l_param: int = 0) -> Optional[bool]:
+        """维护标准键与侧键的独立按住集合；滚轮返回 ``None``。"""
         identity = self._BUTTON_DOWN_IDENTITIES.get(action)
         if action == self._WM_XBUTTONDOWN:
             identity = self._x_button_identity(l_param)
@@ -135,6 +154,7 @@ class WindowsGlobalInputMonitor:
         return None
 
     def start(self) -> bool:
+        """启动钩子线程并等待安装结果；非 Windows 平台返回 false。"""
         if sys.platform != "win32":
             return False
         if self.is_running:
@@ -147,12 +167,14 @@ class WindowsGlobalInputMonitor:
         return self.is_running
 
     def stop(self) -> None:
+        """向钩子线程投递 ``WM_QUIT`` 并等待其卸载钩子。"""
         if self._thread_id and sys.platform == "win32":
             ctypes.windll.user32.PostThreadMessageW(self._thread_id, 0x0012, 0, 0)  # WM_QUIT
         if self._thread:
             self._thread.join(timeout=2)
 
     def _run(self) -> None:
+        """建立两个低级钩子和消息循环，确保回调异常不会泄露原始输入。"""
         user32, kernel32 = ctypes.windll.user32, ctypes.windll.kernel32
         callback_type = ctypes.WINFUNCTYPE(ctypes.c_ssize_t, ctypes.c_int, ctypes.c_size_t, ctypes.c_ssize_t)
         self._configure_win32(user32, kernel32, callback_type)
