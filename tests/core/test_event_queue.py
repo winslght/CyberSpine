@@ -33,15 +33,41 @@ def test_enqueues_and_reloads_a_message(queue):
     assert restored.message.topic == "window.focus_changed"
 
 
-def test_collapse_key_merges_pending_events(queue):
+def test_collapse_key_never_merges_pending_events(queue):
     first = queue.enqueue(make_event(collapse_key="foreground"))
     second = queue.enqueue(
         make_event(collapse_key="foreground", payload={"application": "Terminal.exe"})
     )
 
+    assert first.message.message_id != second.message.message_id
+    assert len(queue.pending()) == 2
+    assert [item.message.payload["application"] for item in queue.pending()] == ["Code.exe", "Terminal.exe"]
+
+
+def test_collapse_key_merges_pending_states_only(queue):
+    first = queue.enqueue(make_event(kind=MessageKind.STATE, collapse_key="foreground"))
+    second = queue.enqueue(make_event(kind=MessageKind.STATE, collapse_key="foreground",
+                                      payload={"application": "Terminal.exe"}))
+
     assert first.message.message_id == second.message.message_id
     assert len(queue.pending()) == 1
     assert queue.pending()[0].message.payload["application"] == "Terminal.exe"
+
+
+def test_event_then_state_with_same_key_never_overwrites_the_event(queue):
+    event = queue.enqueue(make_event(collapse_key="foreground"))
+    state = queue.enqueue(make_event(kind=MessageKind.STATE, collapse_key="foreground",
+                                     payload={"application": "Terminal.exe"}))
+
+    assert [item.message.message_id for item in queue.pending()] == [event.message.message_id, state.message.message_id]
+    assert queue.get(event.message.message_id).message.kind is MessageKind.EVENT
+
+
+def test_state_then_event_with_same_key_preserves_both_messages(queue):
+    state = queue.enqueue(make_event(kind=MessageKind.STATE, collapse_key="foreground"))
+    event = queue.enqueue(make_event(collapse_key="foreground", payload={"application": "Terminal.exe"}))
+
+    assert [item.message.message_id for item in queue.pending()] == [state.message.message_id, event.message.message_id]
 
 
 def test_delivery_and_acknowledgement_are_persisted(queue):

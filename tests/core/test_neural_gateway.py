@@ -35,3 +35,9 @@ def test_gateway_rejects_sensitive_data_without_grant(gateway):
     with pytest.raises(GatewayRejected, match="privacy level"):
         gateway.publish(NeuralMessage(kind=MessageKind.EVENT, source="peripheral.window.activity",
                         topic="window.focus_changed", privacy=PrivacyClass.SENSITIVE))
+
+
+def test_legacy_registration_cannot_be_used_by_an_external_plugin(tmp_path):
+    gateway = NeuralSignalGateway(DurableEventQueue(tmp_path / "signals.db"))
+    with pytest.raises(ValueError, match="built-in window"):
+        gateway.register(PeripheralRegistration.create("peripheral.external", {"external.changed"}))

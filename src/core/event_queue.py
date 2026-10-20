@@ -9,7 +9,7 @@ from typing import List, Optional
 
 from pydantic import BaseModel
 
-from .neural_message import NeuralMessage, utc_now
+from .neural_message import MessageKind, NeuralMessage, utc_now
 
 
 class DeliveryStatus(str, Enum):
@@ -74,17 +74,24 @@ class DurableEventQueue:
             self.expire_messages()
             now = utc_now()
             with self._connect() as connection:
-                if message.collapse_key:
-                    row = connection.execute(
+                # Only state is replaceable. Events are historical facts: a
+                # repeated collapse key cannot erase a real transition unless a
+                # future explicit idempotency policy authorizes that separately.
+                if message.kind is MessageKind.STATE and message.collapse_key:
+                    rows = connection.execute(
                         """
                         SELECT * FROM neural_messages
                         WHERE collapse_key = ? AND status IN (?, ?)
-                        ORDER BY created_at ASC LIMIT 1
+                        ORDER BY created_at ASC
                         """,
                         (message.collapse_key, *self._ACTIVE_STATUSES),
-                    ).fetchone()
-                    if row:
-                        existing = self._row_to_item(row)
+                    ).fetchall()
+                    # An earlier event may share this key. It is historical and
+                    # must remain untouched; only an already-stored state is a
+                    # valid replacement candidate.
+                    existing = next((self._row_to_item(row) for row in rows
+                                     if self._row_to_item(row).message.kind is MessageKind.STATE), None)
+                    if existing:
                         merged = message.model_copy(update={"message_id": existing.message.message_id})
                         connection.execute(
                             """
@@ -144,6 +151,15 @@ class DurableEventQueue:
                     (DeliveryStatus.PENDING.value,),
                 ).fetchall()
             return [self._row_to_item(row) for row in rows]
+
+    def status_counts(self) -> dict[str, int]:
+        """Read-only delivery counts; deliberately never exposes message JSON."""
+        with self._lock:
+            with self._connect() as connection:
+                rows = connection.execute(
+                    "SELECT status, COUNT(*) AS total FROM neural_messages GROUP BY status"
+                ).fetchall()
+            return {row["status"]: row["total"] for row in rows}
 
     def mark_delivered(self, message_id: str) -> QueueItem:
         return self._change_status(message_id, DeliveryStatus.DELIVERED, increment_attempts=True)

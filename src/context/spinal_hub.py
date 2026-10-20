@@ -22,7 +22,8 @@ class NeuralSpinalHub:
         self.gateway.register(PeripheralRegistration.create(self.window.source,
                               {self.window.state_topic, self.window.catalog_topic,
                                self.window.event_topic, self.window.activity_topic,
-                               self.window.time_window_topic, self.window.availability_topic}))
+                               self.window.time_window_topic, self.window.availability_topic,
+                               self.window.geometry_topic}))
 
     def collect_window(self) -> list[QueueItem]:
         """采样窗口感知并以“网关成功后才投影上下文”的顺序处理。"""

@@ -8,6 +8,7 @@
 - [开发与测试说明](current/DEVELOPMENT.md)：本地环境、启动方式和测试分层。
 - [当前开发规划](current/DEVELOPMENT_PLAN.md)：统一消息主干、仿生调节、MCP 适配和唤醒能力的实施顺序。
 - [统一神经通信规范](current/UNIFIED_NEURAL_COMMUNICATION.md)：当前唯一有效的消息信封、网关准入与窗口感知参考实现。
+- [中枢神经网关开发规划](current/NEURAL_GATEWAY_DEVELOPMENT_PLAN.md)：跨语言插件标准、部门边界、网关治理、健康隔离与 G1/G2 文件级开发蓝图。
 - [命名规范](current/NAMING.md)：产品、插件、信号、MCP 与代码的统一命名规则。
 - [末梢互连草案](current/PERIPHERAL_PROTOCOL.md)：历史设计输入，已由统一规范取代。
 - [中枢协调草案](current/NEURAL_COORDINATION_PROTOCOL.md)：历史设计输入，已由统一规范取代。
